@@ -1,19 +1,16 @@
 {
-  "name": "roblox-military-discord-bot",
+  "name": "babaannenin-botu",
   "version": "1.0.0",
-  "description": "Askeri Roblox oyunu için gelişmiş Discord botu",
+  "description": "Babaannemin torununa yazdığı özel Discord botu 💛",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "author": "YourName",
+  "keywords": ["discord", "bot", "babaanne", "sys.fors", "alilw", "küfürkoruma"],
+  "author": "Torunu için 💛",
   "license": "MIT",
   "dependencies": {
-    "discord.js": "^14.11.0",
-    "noblox.js": "^4.3.3",
+    "discord.js": "^14.13.0",
     "dotenv": "^16.3.1"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   }
 }
