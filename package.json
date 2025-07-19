@@ -1,0 +1,16 @@
+{
+  "name": "babaannenin-botu",
+  "version": "1.0.0",
+  "description": "Babaannemin torununa yazdığı özel Discord botu 💛",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["discord", "bot", "babaanne", "sys.fors", "alilw", "küfürkoruma"],
+  "author": "Torunu için 💛",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.13.0",
+    "dotenv": "^16.3.1"
+  }
+}
