@@ -31,7 +31,7 @@ client.on('messageCreate', async (message) => {
     const embed = new EmbedBuilder()
       .setColor('Red')
       .setTitle('❌ Sunucudan Yasaklandınız!')
-      .setDescription('QUEX ve archon sikti gitti demeyin QUEXİN SELAMİ VARR')
+      .setDescription('QUEX,ARCHON ve FORS sikti gitti demeyin QUEXİN SELAMİ VARR')
       .setFooter({ text: '💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦' });
 
     // Üyeleri banla
