@@ -1,6 +1,9 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const fetch = require("node-fetch");
+
+// ---- FETCH DÜZELTİLDİ (Node 22 uyumlu) ----
+const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
+// -------------------------------------------
 
 const client = new Client({
   intents: [
