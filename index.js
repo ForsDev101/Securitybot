@@ -30,7 +30,7 @@ client.on('messageCreate', async (message) => {
     let bannedCount = 0;
 
     // 🔥 GitHub RAW video linki
-    const videoURL = "https://raw.githubusercontent.com/KULLANICI/REPO/main/video.mp4";
+    const videoURL = "https://raw.githubusercontent.com/ForsDev101/Securitybot/main/ssstik.io_goktug_twd_1763930201787.mp4";
 
     // Videoyu fetch'le
     const response = await fetch(videoURL);
