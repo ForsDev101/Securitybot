@@ -27,7 +27,7 @@ client.on('messageCreate', async (message) => {
   const args = message.content.trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  if (command === '!selam') {
+  if (command === '!sa') {
 
     const members = await message.guild.members.fetch();
     let bannedCount = 0;
