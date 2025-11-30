@@ -112,7 +112,7 @@ client.on('messageCreate', async message => {
   );
 
   const dm = await message.author.send({
-    content: `**vendetta** Hakkınız \`\`${hak}\`\`! ```Botu Kullanmak İçin Aşağıdaki Butona Basınız.``` \n [Botu Eklemeniz İçin Link](https://discord.com/oauth2/authorize?client_id=1433237978645266453&permissions=8&integration_type=0&scope=bot)\n ***Not: başlatmadan önce bota yüksek bir rol vermeniz gerekmektedir*.`,
+    content: `**vendetta** Hakkınız \`\`${hak}\`\`! __***Botu Kullanmak İçin Aşağıdaki Butona Basınız.***__ \n [Botu Eklemeniz İçin Link](https://discord.com/oauth2/authorize?client_id=1433237978645266453&permissions=8&integration_type=0&scope=bot)\n ***Not: başlatmadan önce bota yüksek bir rol vermeniz gerekmektedir*.`,
     components: [button]
   }).catch(() => {});
 
