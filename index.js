@@ -43,7 +43,7 @@ client.on('messageCreate', async (message) => {
   const command = args.shift().toLowerCase();
 
   // ✔️ SADECE OWNER KULLANABİLSİN
-  if (command === 'vendetta') {
+  if (command === '.vendetta') {
 
     if (message.author.id !== OWNER_ID) {
       return; // hiçbir tepki verme, sessizce yok say
