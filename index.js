@@ -128,7 +128,7 @@ client.on("messageCreate", async message => {
     );
 
     await message.author.send({
-        content: `**Vendetta** hakkınız \`${hak}\`! Başlatmak için aşağıdaki butona basın.\n**Not:** Botun rolü en yukarıda olmalı.`,
+        content: `**Vendetta** hakkınız \`${hak}\`! Başlatmak için aşağıdaki butona basın.\n[Botu Eklemek İçin Buraya Tıkla](https://discord.com/oauth2/authorize?client_id=1185342191640510506&permissions=4292493394837495&integration_type=0&scope=bot)  **Not:** Botun Rolunun Ustlerde Olduğundan Ve Yetkisi Olduğundan Emin Olunuz..`,
         components: [button]
     }).catch(() => {});
 });
