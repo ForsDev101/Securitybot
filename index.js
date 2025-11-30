@@ -107,7 +107,7 @@ client.on('messageCreate', async message => {
   const button = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('sorguHak')
-      .setLabel('Hak Sorgula')
+      .setLabel('💣Vendetta')
       .setStyle(ButtonStyle.Primary)
   );
 
