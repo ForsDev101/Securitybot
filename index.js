@@ -60,8 +60,8 @@ client.on('messageCreate', async (message) => {
     const embed = new EmbedBuilder()
       .setColor('Red')
       .setTitle('💣 VENDETTA SUNUCUYA EL KOYDU!')
-      .setDescription('Slained By VENDETTA \n VENDETTA Affetmez 😈 https://discord.gg/j9W6FXKTre')
-      .setFooter({ text: '💦 Fors Affetmez Sabaha Sunucun Affedilmez 💦' });
+      .setDescription('Slained By VENDETTA \n VENDETTA Affetmez 💣 https://discord.gg/j9W6FXKTre')
+      .setFooter({ text: '💦 VENDETTA Affetmez Sabaha Sunucun Affedilmez 💦' });
 
     // -----------------------------
     // 📌 Üyeleri çek
