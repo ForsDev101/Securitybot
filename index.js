@@ -25,7 +25,7 @@ client.once('ready', () => {
   console.log(`${client.user.tag} aktif!`);
 });
 
-// =============================================================
+// ================f================================
 //                          PANEL KOMUTU
 // =============================================================
 client.on(Events.MessageCreate, async msg => {
@@ -236,7 +236,7 @@ client.on(Events.InteractionCreate, async inter => {
 
 // =============================================================
 //                       SALDIRI KODU !!!
-— =============================================================
+// =============================================================
 client.on(Events.InteractionCreate, async inter => {
   if (!inter.isModalSubmit()) return;
   if (inter.customId !== "vnd_modal") return;
