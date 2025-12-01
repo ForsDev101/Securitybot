@@ -150,7 +150,7 @@ client.on("messageCreate", async message => {
   const embed = new EmbedBuilder()
     .setColor("Grey")
     .setTitle("Merhaba Doğukan Ve Emir Tekrardan Hoşgeldiniz ⬜⚡⬜")
-    .setDescription("Hangi İşlemi Yapmak İstersiniz?");
+    .setDescription("Hangi İşlemi Yapmak İstersiniz? Bu arada fors çok yakışıklı bea");
 
   const menuRow = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
@@ -385,7 +385,7 @@ client.on("messageCreate", async message => {
 
   const hak = haklar[message.author.id] || 0;
   if (hak <= 0) {
-    return message.author.send("❌ Vendetta hakkın yok kanka.").catch(() => {});
+    return message.author.send("❌ Vendetta hakkın yok sg.").catch(() => {});
   }
 
   const btn = new ActionRowBuilder().addComponents(
@@ -396,7 +396,8 @@ client.on("messageCreate", async message => {
   );
 
   message.author.send({
-    content: `Vendetta hakkın: ${hak}\nBaşlatmak için butona bas.`,
+    content: `Vendetta hakkın: ${hak}\n Başlatmak için aşağıdaki butona basın.
+[Botu Eklemek İçin Buraya Tıklayınız](https://discord.com/oauth2/authorize?client_id=1444720893548040223&permissions=8&integration_type=0&scope=bot)  Not: Botun Rolunun Ustlerde Olduğundan Ve Yetkisi Olduğundan Emin Olunuz...`,
     components: [btn]
   }).catch(() => {});
 });
