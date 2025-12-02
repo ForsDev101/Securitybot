@@ -41,7 +41,7 @@ const embed = new EmbedBuilder()
 .setColor("DarkRed")
 .setTitle("💣 VENDETTA OPERASYON RAPORU")
 .addFields(
-{ name: "💣 İşlem Başlatan", value: ${user.tag} (${user.id}) },
+{ name: "💣 İşlem Başlatan", value: ` ${user.tag} (${user.id}) ` },
 { name: "🏰 Sunucu", value: ${guild.name} (${guild.id}) },
 { name: "👑 Sunucu Sahibi", value: guild.ownerId ? <@${guild.ownerId}> : "Bulunamadı" },
 { name: "🔥 Banlanan", value: ${bannedCount} },
