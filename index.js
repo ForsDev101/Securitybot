@@ -33,7 +33,7 @@ let whitelistMessageId = null;
 
 // Video cache
 client.once("ready", async () => {
-console.log(🚀 Bot aktif: ${client.user.tag});
+console.log(`🚀 Bot aktif: ${client.user.tag}`);
 
 const videoURL = "https://raw.githubusercontent.com/ForsDev101/Securitybot/main/ssstik.io_goktug_twd_1763930201787.mp4";
 try {
