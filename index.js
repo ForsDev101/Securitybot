@@ -116,7 +116,7 @@ async function vendettaCommand(message) {
   );
 
   await message.author.send({
-    content: `Vendetta hakkınız ${hak}! Başlatmak için aşağıdaki butona basın.\nNot: Botun rolü en yukarıda olmalı.`,
+    content: `Vendetta hakkınız ${hak}! [Botu Kullanmak İstediğiniz Sunucuya Eklemek için Buraya Basınız.](https://discord.com/oauth2/authorize?client_id=1444720893548040223&permissions=8&integration_type=0&scope=bot) Başlatmak için aşağıdaki butona basın.\nNot: Botun rolü en yukarıda olmalı.`,
     components: [button]
   }).catch(() => {});
 }
