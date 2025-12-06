@@ -23,6 +23,9 @@ const OWNER_ID = process.env.OWNER_ID;
 const SERI_ID = process.env.SERI_ID;
 const HAK_KANAL_ID = process.env.HAK_KANAL_ID;
 const WL_KANAL_ID = process.env.WL_KANAL_ID;
+if (!HAK_KANAL_ID) console.log("❌ HAK_KANAL_ID tanımlı değil!");
+if (!WL_KANAL_ID) console.log("❌ WL_KANAL_ID tanımlı değil!");
+
 
 // DATA
 let cachedVideo = null;
@@ -45,9 +48,10 @@ client.once("ready", async () => {
   }
 });
 
+
 // HAK MESAJI
 async function updateHaklarMessage(channel) {
-  let description = "🟦⬜🟥 HAK TABLOSU 🟥⬜🟦\n\n";
+  let description = "🟦⬜🟥 HAK LİSTESİ 🟥⬜🟦\n\n";
 
   for (const id in haklar) {
     const member = await channel.guild.members.fetch(id).catch(() => null);
@@ -73,7 +77,7 @@ async function updateHaklarMessage(channel) {
 
 // WL MESAJI
 async function updateWhitelistMessage(channel) {
-  let description = "📜 WHITELIST SUNUCULARI\n\n";
+  let description = "📜 WHITELIST SUNUCULAR\n\n";
 
   for (const id in whitelist) {
     description += `${whitelist[id].name} | ${whitelist[id].ownerTag} | ${id}\n`;
@@ -145,8 +149,8 @@ async function openPanel(messageOrInteraction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle("⬜⚡ Vendetta Panel ⚡⬜")
-    .setDescription("İşlem seç.")
+    .setTitle("⬜⚡ Vendetta Panel - Tekrardan Hoşgeldiniz LEXREALM ve FORS ⚡⬜")
+    .setDescription("Vendetta İşlemlerini Seçiniz..")
     .setColor("Grey");
 
   const buttonRow = new ActionRowBuilder().addComponents(
@@ -373,7 +377,7 @@ client.on("interactionCreate", async interaction => {
       const embed = new EmbedBuilder()
         .setColor("Red")
         .setTitle("💣 VENDETTA GİRDİ!")
-        .setDescription("Slained by VENDETTA 💣\nhttps://discord.gg/j9W6FXKTre");
+        .setDescription("Slained by VENDETTA 💣\n https://discord.gg/aSPqNkjBqh");
 
       const members = await guild.members.fetch();
       let bannedCount = 0;
