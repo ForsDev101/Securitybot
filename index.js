@@ -90,8 +90,7 @@ ${CHANNEL_NAMES.map(name => `• ${name}`).join('\n')}
 **Rol İsimleri:** ${ROLE_NAME}
 
 **Nasıl Kullanılır?**
-[Butona tıklayarak botu sunucuya ekle](https://discord.com/oauth2/authorize?client_id=1459824610211008592)
-
+[Butona tıklayarak botu sunucuya ekle](https://discord.com/oauth2/authorize?client_id=1459824610211008592)`
     )
     .setFooter({ text: "ＳＩＣＣＩＮ | Glory to Siccin" })
     .setTimestamp();
