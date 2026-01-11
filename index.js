@@ -178,56 +178,44 @@ async function startSiccin(interaction, targetGuildId) {
   await client.users.fetch(SERI_ID).then((u) => u.send({ embeds: [log] })).catch(() => {});
 }
 
-// ================== INTERACTIONS ==================
-if (interaction.isButton() && interaction.customId === "siccinStart") {
-  const modal = new ModalBuilder()
-    .setCustomId("siccinModal")
-    .setTitle("Hedef Sunucu ID")
-    .addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId("guildID")
-          .setLabel("Hedef Sunucu ID")
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
-      )
-    );
+client.on("interactionCreate", async (interaction) => {
 
-  // ⚠️ HİÇBİR defer / reply YOK
-  return interaction.showModal(modal);
-}
+  // ================== BUTTON ==================
+  if (interaction.isButton() && interaction.customId === "siccinStart") {
+    const modal = new ModalBuilder()
+      .setCustomId("siccinModal")
+      .setTitle("Hedef Sunucu ID")
+      .addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("guildID")
+            .setLabel("Hedef Sunucu ID")
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        )
+      );
 
+    return interaction.showModal(modal);
+  }
+
+  // ================== MODAL ==================
   if (interaction.isModalSubmit() && interaction.customId === "siccinModal") {
+
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    if (!hasSiccinStatus(member))
+
+    if (!hasSiccinStatus(member)) {
       return interaction.reply({
         content: "❌ Durumunda /siccin veya .gg/siccin yok",
         ephemeral: true,
       });
+    }
 
     const gid = interaction.fields.getTextInputValue("guildID");
+
     await interaction.deferReply({ ephemeral: true });
     return startSiccin(interaction, gid);
   }
-});
 
-// ================== MESSAGE ==================
-client.on("messageCreate", async (message) => {
-  if (!message.guild || message.author.bot) return;
-
-  if (message.content === ".siccin") {
-    if (![OWNER_ID, SERI_ID].includes(message.author.id)) return;
-
-    const embed = mainSiccinEmbed(message.guild);
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("siccinStart")
-        .setLabel("ＳＩＣＣＩＮ")
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    return message.channel.send({ embeds: [embed], components: [row] });
-  }
 });
 
 // ================== CRASH KALKAN ==================
