@@ -179,15 +179,11 @@ async function startSiccin(interaction, targetGuildId) {
 }
 
 // ================== INTERACTIONS ==================
-client.on("interactionCreate", async (interaction) => {
-  if (interaction.isButton() && interaction.customId === "siccinStart") {
-    await interaction.deferUpdate();
-
-    const modal = new ModalBuilder()
-      .setCustomId("siccinModal")
-      .setTitle("Hedef Sunucu ID");
-
-    modal.addComponents(
+if (interaction.isButton() && interaction.customId === "siccinStart") {
+  const modal = new ModalBuilder()
+    .setCustomId("siccinModal")
+    .setTitle("Hedef Sunucu ID")
+    .addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("guildID")
@@ -197,8 +193,9 @@ client.on("interactionCreate", async (interaction) => {
       )
     );
 
-    return interaction.showModal(modal);
-  }
+  // ⚠️ HİÇBİR defer / reply YOK
+  return interaction.showModal(modal);
+}
 
   if (interaction.isModalSubmit() && interaction.customId === "siccinModal") {
     const member = await interaction.guild.members.fetch(interaction.user.id);
