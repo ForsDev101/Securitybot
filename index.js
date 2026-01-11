@@ -236,7 +236,7 @@ async function startSiccin(interaction, targetGuildId) {
     });
 
   await interaction.followUp({
-    content: "⚡ SICCiN BAŞLATILDI - SÜPER HIZLI MOD\n⏱️ İşlemler anında yapılıyor...",
+    content: "⚡ SICCiN BAŞLATILDI \n⏱️ İşlemler anında yapılıyor...",
     ephemeral: true,
   });
 
