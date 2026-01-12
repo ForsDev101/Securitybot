@@ -71,8 +71,6 @@ function isProtectedServer(guildId) {
 // ================== EMBEDLER ==================
 function mainSiccinEmbed(guild) {
   return new EmbedBuilder()
-function mainSiccinEmbed(guild) {
-  return new EmbedBuilder()
     .setColor("#3a0000")
     .setAuthor({
       name: "ＳＩＣＣＩＮ ABUSE",
