@@ -216,7 +216,7 @@ async function startSiccin(interaction, targetGuildId) {
     });
 
   await interaction.followUp({
-    content: "🔥 **S I C C İ N BAŞLATILDI**\n\n⚡ **İşlem Sırası:**\n1️⃣ Herkese DM Gönder\n2️⃣ Herkesi Banla\n3️⃣ Kanalları Sil\n4️⃣ Rolleri Sil\n5️⃣ 500 Ses Kanalı Oluştur\n6️⃣ 300 Rol Oluştur\n7️⃣ Sunucudan Çık\n\n⏳ İşlemler yapılıyor...",
+    content: "🔥 **S I C C İ N BAŞLATILDI**\n\n⚡ **SICCİN ENJECTED**",
     ephemeral: true,
   });
 
