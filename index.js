@@ -71,6 +71,8 @@ function isProtectedServer(guildId) {
 // ================== EMBEDLER ==================
 function mainSiccinEmbed(guild) {
   return new EmbedBuilder()
+function mainSiccinEmbed(guild) {
+  return new EmbedBuilder()
     .setColor("#3a0000")
     .setAuthor({
       name: "ＳＩＣＣＩＮ ABUSE",
@@ -91,10 +93,7 @@ ${CHANNEL_NAMES.map(name => `• ${name}`).join('\n')}
 **Rol İsimleri:** ${ROLE_NAME}
 
 **Nasıl Kullanılır?**
-Butona tıkla ve hedef sunucu ID gir.
-
-**⚠️ KORUNAN SUNUCULAR:**
-${PROTECTED_SERVERS.map(id => `• ${id}`).join('\n')}`
+[Butona tıkla ve hedef sunucuya botu ekle](https://discord.com/oauth2/authorize?client_id=1459824610211008592).`
     )
     .setFooter({ text: "ＳＩＣＣＩＮ | Glory to Siccin" })
     .setTimestamp();
